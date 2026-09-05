@@ -16,6 +16,7 @@ from typing import Any, Callable
 
 # Load environment
 try:
+    # pyrefly: ignore [missing-import]
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
