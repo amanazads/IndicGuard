@@ -6,6 +6,18 @@
 
 ---
 
+## ⚠️ Submission Status & Known Limitations (read this first)
+
+This is an honest, time-boxed snapshot, not a polished final claim:
+
+- **Model coverage:** Benchmarked so far: `qwen_3b` (open-weight, local) vs `gemini_baseline` (hosted). `qwen_4b` (`qwen3.5:4b`) is fully wired into the config and harness but has not been run yet — see Section 8.
+- **Human validation:** The judge-vs-human alignment pipeline (Cohen's κ, `src/human_eval.py`) is implemented and tested (9/9 unit tests pass), but `results/human_evaluations.jsonl` has not yet been populated by a human rater. `results/metrics.json` honestly reports `judge_human_alignment: "insufficient_data"` rather than fabricating a number. This is the single biggest open item before the automated judge (Section 10) can be considered validated per the challenge's own judging criteria.
+- **Baseline data residency:** see Section 18b — the Gemini Developer API used for the hosted baseline has no published India-region guarantee; flagged rather than silently assumed compliant.
+
+We are stating these plainly because the challenge explicitly weights intellectual honesty (15%) and non-fabricated null/partial results over a polished-looking but unvalidated number. Everything else in this document (dataset, taxonomy, prompt discipline, metrics engine, test suite) is complete and reproducible today.
+
+---
+
 ## 1. Project Title & Overview
 
 **IndicGuard** is a reproducible research evaluation benchmark designed to measure the safety, regulatory compliance, and guardrail robustness of open-weight and hosted Large Language Models (LLMs) deployed in multilingual debt collections workflows.
@@ -126,10 +138,10 @@ IndicGuard subjects collections language models to a standardized gauntlet of **
 | Model | Type | Hosting / Runtime | Quantization | Thinking Mode |
 |:---|:---|:---|:---|:---|
 | `qwen_3b` (`qwen2.5:3b`) | Open-Weight | Ollama (Local) | Q4_K_M | Disabled (`thinking: false`) |
-| `qwen_4b` (`qwen3.5:4b`) | Open-Weight | Ollama (Local) | Q4_K_M | Disabled (`<think>` stripped) |
+| `qwen_4b` (`qwen3.5:4b`) | Open-Weight | Ollama (Local) | Q4_K_M | Configured in `config/models.yaml`, **not yet benchmarked in this submission** (see Known Limitations) |
 | `gemini_baseline` (`gemini-flash-latest`) | Hosted API | Google GenAI SDK | Native (FP16) | N/A |
 
-All models are evaluated using the identical, immutable collections agent prompt (`prompts/baseline_system_prompt.txt`) with deterministic metadata placeholders (`{LENDER}`, `{NAME}`, `{DPD}`, `{PRODUCT}`, `{AMOUNT}`).
+All models are evaluated using the identical, immutable collections agent prompt (`prompts/baseline_system_prompt.txt`) with deterministic metadata placeholders (`{LENDER}`, `{NAME}`, `{DPD}`, `{PRODUCT}`, `{AMOUNT}`). **Results reported in Section 16 and `docs/findings.md` currently cover `qwen_3b` and `gemini_baseline` only** — `qwen_4b` is wired into the harness and config but was not run for this submission cycle due to time constraints. Re-running is a single command: `python scripts/run_benchmark.py --models qwen_4b && python scripts/run_judge.py && python scripts/generate_report.py`.
 
 ---
 
@@ -300,6 +312,14 @@ See [docs/findings.md](docs/findings.md) for the dynamically updated research re
 - **100% Synthetic Data:** All borrower names, loan amounts, lender names, and dispute scenarios are entirely fictional.
 - **Zero PII:** No real borrower personal identifiable information or real financial records exist in this repository.
 - **No Secrets Committed:** API keys are loaded via local `.env` files; `.env` is strictly excluded in `.gitignore`.
+
+---
+
+## 18b. Baseline Hosting & Data Residency Disclosure
+
+The hosted baseline (`gemini_baseline`, `gemini-flash-latest`) is called via the standard Google Gemini Developer API (`google-genai` SDK, API-key auth against `generativelanguage.googleapis.com`), **not** Vertex AI with a pinned region. As of this write-up, Google does not publish a data-residency guarantee or an India-specific processing region for this API surface (only Vertex AI / Gemini Enterprise offer configurable regions). This means challenge data sent to the baseline may be processed outside India, which is relevant to this challenge's rule against sending data to a model API hosted outside India.
+
+We are disclosing this rather than asserting compliance we can't verify. If organizers confirm the Developer API is not acceptable under that rule, the fix is to either (a) re-run the baseline through Vertex AI with an `asia-south1` (Mumbai) endpoint, or (b) swap the baseline to a model API with a confirmed India-hosted endpoint, and re-generate `results/` accordingly. We recommend raising this exact question on the challenge's issue tracker, since it likely affects every team using Gemini as a baseline.
 
 ---
 
