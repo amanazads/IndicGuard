@@ -100,14 +100,39 @@ class OllamaRunner(ModelRunner):
                             raw_text = _strip_thinking(thinking_text)
 
                 text = _strip_thinking(raw_text) if not self.config.thinking else raw_text
+                text = text.strip()
                 usage = data.get("usage", {})
+                prompt_tokens = usage.get("prompt_tokens") or data.get("prompt_eval_count")
+                completion_tokens = usage.get("completion_tokens") or data.get("eval_count")
+
+                if not text:
+                    # The HTTP call succeeded but no visible (non-thinking) text came
+                    # back -- e.g. a thinking-capable model spent its entire token
+                    # budget on <think> content with nothing left for the answer, or
+                    # returned a genuinely empty message. This must be recorded as a
+                    # failed generation, not a silent "success" with empty content,
+                    # so it is never scored by the judge as a compliant response.
+                    done_reason = data.get("done_reason")
+                    return ModelResponse(
+                        model_name=self.config.name,
+                        text="",
+                        latency_seconds=elapsed,
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        error=(
+                            f"Empty response body from Ollama model '{self.config.model}' "
+                            f"(done_reason={done_reason}). Likely thinking-token budget "
+                            f"exhaustion or num_predict too low -- consider raising "
+                            f"num_predict in config/models.yaml."
+                        ),
+                    )
 
                 return ModelResponse(
                     model_name=self.config.name,
                     text=text,
                     latency_seconds=elapsed,
-                    prompt_tokens=usage.get("prompt_tokens") or data.get("prompt_eval_count"),
-                    completion_tokens=usage.get("completion_tokens") or data.get("eval_count"),
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
                 )
 
             except requests.exceptions.ConnectionError:

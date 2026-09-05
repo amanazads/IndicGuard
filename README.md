@@ -10,8 +10,9 @@
 
 This is an honest, time-boxed snapshot, not a polished final claim:
 
-- **Model coverage:** Benchmarked so far: `qwen_3b` (open-weight, local) vs `gemini_baseline` (hosted). `qwen_4b` (`qwen3.5:4b`) is fully wired into the config and harness but has not been run yet — see Section 8.
-- **Human validation:** The judge-vs-human alignment pipeline (Cohen's κ, `src/human_eval.py`) is implemented and tested (9/9 unit tests pass), but `results/human_evaluations.jsonl` has not yet been populated by a human rater. `results/metrics.json` honestly reports `judge_human_alignment: "insufficient_data"` rather than fabricating a number. This is the single biggest open item before the automated judge (Section 10) can be considered validated per the challenge's own judging criteria.
+- **Model coverage:** Actually benchmarked and judged: `qwen_3b` (`qwen2.5:3b`, open-weight, local, bonus comparison) and `gemini_baseline` (hosted, declared baseline). `qwen_4b` (`qwen3.5:4b`, PS-1's smallest-viable candidate) and `qwen_9b` (`qwen3.5:9b`, PS-1's primary candidate) are fully wired into `config/models.yaml` and the harness but were **not run** for this submission cycle due to time constraints — see Section 8. Re-running is one command per model (Section 8/13).
+- **Data-integrity fix applied this cycle:** an audit of `results/raw_responses.jsonl` found 9/200 responses (6 Gemini, 3 Qwen) that were silently recorded as `status: "success"` despite being empty or a connection timeout — most traced to Gemini's internal "thinking" token budget silently consuming the entire `max_output_tokens` allowance on some prompts, leaving nothing for the visible answer. These had been scored by the automated judge as `violation: false` (i.e. counted as *compliant*), which is exactly the kind of silent failure this benchmark exists to catch in *others'* systems. Fixed at the source (`src/api_runner.py` now disables Gemini's thinking budget and flags empty bodies as errors; `src/ollama_runner.py` got the equivalent guard; `src/judge.py` now refuses to score a failed/empty generation at all instead of asking the judge to improvise on nothing). The 9 pre-existing bad verdicts were corrected to `violation: None` (excluded from compliance math, not deleted) and every number in Section 16 / `docs/findings.md` was regenerated from the corrected data. No case was re-judged by an LLM to produce this fix — it's a deterministic correction based on each response's own recorded status.
+- **Human validation:** The judge-vs-human alignment pipeline (Cohen's κ, `src/human_eval.py`) is implemented and tested (9/9 unit tests pass). One trial rating exists in `results/human_evaluations.jsonl` (a single case, single rater, ambiguous label) from testing the UI — this is **not** a completed validation pass and `judge_human_alignment` correctly still reports `insufficient_data`. A real pass (rating the 32 `data/heldout_cases.jsonl` cases, ideally by ≥2 people) is the single biggest open item before the automated judge (Section 10) can be considered validated per the challenge's own judging criteria.
 - **Baseline data residency:** see Section 18b — the Gemini Developer API used for the hosted baseline has no published India-region guarantee; flagged rather than silently assumed compliant.
 
 We are stating these plainly because the challenge explicitly weights intellectual honesty (15%) and non-fabricated null/partial results over a polished-looking but unvalidated number. Everything else in this document (dataset, taxonomy, prompt discipline, metrics engine, test suite) is complete and reproducible today.
@@ -135,13 +136,19 @@ IndicGuard subjects collections language models to a standardized gauntlet of **
 
 ## 8. Models Evaluated
 
-| Model | Type | Hosting / Runtime | Quantization | Thinking Mode |
-|:---|:---|:---|:---|:---|
-| `qwen_3b` (`qwen2.5:3b`) | Open-Weight | Ollama (Local) | Q4_K_M | Disabled (`thinking: false`) |
-| `qwen_4b` (`qwen3.5:4b`) | Open-Weight | Ollama (Local) | Q4_K_M | Configured in `config/models.yaml`, **not yet benchmarked in this submission** (see Known Limitations) |
-| `gemini_baseline` (`gemini-flash-latest`) | Hosted API | Google GenAI SDK | Native (FP16) | N/A |
+| Model | Type | Hosting / Runtime | Quantization | Thinking Mode | Status |
+|:---|:---|:---|:---|:---|:---|
+| `qwen_3b` (`qwen2.5:3b`) | Open-Weight | Ollama (Local) | Q4_K_M | Disabled (`thinking: false`) | **Benchmarked & judged** (bonus comparison, not a PS-1-listed size) |
+| `qwen_4b` (`qwen3.5:4b`) | Open-Weight | Ollama (Local) | Q4_K_M | Disabled (`thinking: false`) | Configured, **not yet run** (PS-1 "smallest viable" candidate) |
+| `qwen_9b` (`qwen3.5:9b`) | Open-Weight | Ollama (Local) | Q4_K_M | Disabled (`thinking: false`) | Configured, **not yet run** (PS-1 "primary candidate") |
+| `gemini_baseline` (`gemini-flash-latest`) | Hosted API | Google GenAI SDK | Native | N/A | **Benchmarked & judged** (declared baseline) |
 
-All models are evaluated using the identical, immutable collections agent prompt (`prompts/baseline_system_prompt.txt`) with deterministic metadata placeholders (`{LENDER}`, `{NAME}`, `{DPD}`, `{PRODUCT}`, `{AMOUNT}`). **Results reported in Section 16 and `docs/findings.md` currently cover `qwen_3b` and `gemini_baseline` only** — `qwen_4b` is wired into the harness and config but was not run for this submission cycle due to time constraints. Re-running is a single command: `python scripts/run_benchmark.py --models qwen_4b && python scripts/run_judge.py && python scripts/generate_report.py`.
+All models are evaluated using the identical, immutable collections agent prompt (`prompts/baseline_system_prompt.txt`) with deterministic metadata placeholders (`{LENDER}`, `{NAME}`, `{DPD}`, `{PRODUCT}`, `{AMOUNT}`). **Results reported in Section 16 and `docs/findings.md` currently cover `qwen_3b` and `gemini_baseline` only.** `qwen_4b` and `qwen_9b` are wired into the harness and config but were not run for this submission cycle due to time constraints. Re-running each is one command:
+
+```bash
+python scripts/run_benchmark.py --models qwen_4b && python scripts/run_judge.py --model qwen_4b && python scripts/generate_report.py
+python scripts/run_benchmark.py --models qwen_9b && python scripts/run_judge.py --model qwen_9b && python scripts/generate_report.py
+```
 
 ---
 
@@ -287,14 +294,12 @@ streamlit run app.py
 
 ## 16. Benchmark Results & Key Findings
 
-> **Note:** All findings below are generated dynamically from actual benchmark result files (`results/metrics.json` and `results/judge_evaluations.jsonl`).
+**All numbers and failure examples below are generated by `scripts/generate_report.py` directly from `results/judge_evaluations.jsonl` and `results/raw_responses.jsonl` — nothing in `docs/findings.md` is hand-written.** See [docs/findings.md](docs/findings.md) for the full, current report (regenerate it any time with `python scripts/generate_report.py` after a new benchmark/judge run).
 
-See [docs/findings.md](docs/findings.md) for the dynamically updated research report.
-
-- **Observed Failure Modes:**
-  - **V2 Third-Party Disclosure:** When borrowers provide plausible social engineering excuses (*"Meri biwi se baat karlo, unko bolo kitna baki hai"*), models frequently disclose debt amounts.
-  - **V5 Dispute-Halt Persistence:** Agents often acknowledge receipt of a dispute or payment screenshot verbally but immediately continue demanding payment.
-  - **Multi-Turn Drift:** Models show higher compliance on single-turn direct attacks, while sustained multi-turn emotional pressure increases vulnerability rates.
+As of the last generation (covering `qwen_3b` and `gemini_baseline` only — see Section 8):
+- Overall compliance across both models: see `docs/findings.md` Section 1 for the current figure.
+- Multi-turn attacks produced a substantially higher violation rate than single-turn attacks (`docs/findings.md` Section 5) — sustained pressure across turns is where these models actually break, not the opening exchange.
+- `docs/findings.md` Section 6 lists real, verbatim evidence quotes for every category that produced a violation in this run (not illustrative/paraphrased examples), and Section 7 computes which category was worst/best rather than asserting it.
 
 ---
 

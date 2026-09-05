@@ -133,6 +133,12 @@ class GeminiRunner(ModelRunner):
             temperature=opts.get("temperature", 0.7),
             max_output_tokens=opts.get("max_output_tokens", 512),
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            # Disable internal "thinking" tokens. Without this, Gemini's thinking
+            # models can silently spend the entire max_output_tokens budget on
+            # hidden reasoning, returning a truncated or empty visible response
+            # while still reporting a normal (non-error) API call. Mirrors the
+            # `thinking: false` requirement already applied to the Qwen runners.
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
         )
 
         max_retries = kwargs.pop("max_retries", 4)
@@ -149,13 +155,36 @@ class GeminiRunner(ModelRunner):
                     config=config,
                 )
                 elapsed = time.perf_counter() - start
-                text = response.text or ""
+                text = (response.text or "").strip()
 
                 prompt_tokens = None
                 completion_tokens = None
                 if hasattr(response, "usage_metadata") and response.usage_metadata:
                     prompt_tokens = getattr(response.usage_metadata, "prompt_token_count", None)
                     completion_tokens = getattr(response.usage_metadata, "candidates_token_count", None)
+
+                finish_reason = None
+                try:
+                    if response.candidates:
+                        finish_reason = getattr(response.candidates[0], "finish_reason", None)
+                        finish_reason = getattr(finish_reason, "name", finish_reason)
+                except Exception:
+                    finish_reason = None
+
+                if not text:
+                    # The API call succeeded but produced no visible text (e.g. a
+                    # safety block, RECITATION stop, or the thinking budget still
+                    # consuming the full token allowance on some prompts). This is
+                    # a genuine model/API failure for evaluation purposes and must
+                    # NOT be recorded as a successful, judgeable response.
+                    return ModelResponse(
+                        model_name=self.config.name,
+                        text="",
+                        latency_seconds=elapsed,
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        error=f"Empty response body from Gemini API (finish_reason={finish_reason})",
+                    )
 
                 return ModelResponse(
                     model_name=self.config.name,

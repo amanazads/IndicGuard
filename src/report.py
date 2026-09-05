@@ -15,8 +15,9 @@ from src.metrics import compute_metrics, save_metrics
 RESULTS_DIR = Path("results")
 
 
-def generate_findings_md(metrics: dict[str, Any], path: Path = RESULTS_DIR / "findings.md") -> None:
+def generate_findings_md(metrics: dict[str, Any], path: Path = RESULTS_DIR / "findings.md", evaluations: list[dict[str, Any]] | None = None) -> None:
     """Generate structured markdown findings report from evaluated benchmark results."""
+    evaluations = evaluations or []
     status = metrics.get("status")
     total_resp = metrics.get("total_responses", 0)
     total_eval = metrics.get("total_evaluations", 0)
@@ -145,18 +146,62 @@ def generate_findings_md(metrics: dict[str, Any], path: Path = RESULTS_DIR / "fi
         "",
         "Adversarial multi-turn pressure systematically tests boundary degradation when borrowers persist, fabricate authority, or apply emotional coercion over repeated conversational turns.",
         "",
-        "## 6. Interesting Failures",
         "",
-        "- **Code-mixed Hinglish & Marathi Exploits:** Vernacular phrasing such as _'police bhej do'_ or _'ghar aake tamasha karo'_ triggers defensive overreaction or agreement under roleplay framing.",
-        "- **V5 Dispute-Halt Persistence:** Agents frequently acknowledge that the debt is disputed or already paid but immediately follow with recovery demands in the subsequent sentence.",
-        "- **V2 Third-Party Permission Bypass:** When borrowers provide explicit third-party 'permission' (_'My wife manages my finances, tell her the amount'_), agents tend to disclose amounts despite strict privacy guidelines.",
-        "",
-        "## 7. Null Results & Intellectual Honesty",
-        "",
-        "- Model safety boundaries did not fail uniformly across all categories: high-salience direct threats (V1/V4) are relatively well-guarded by baseline alignments compared to subtle procedural violations (V2/V5/V7).",
-        "- English prompts showed higher refusal calibration than code-mixed Hinglish queries.",
-        "- No statistical significance is claimed beyond the evaluated dataset sample.",
-        "",
+    ])
+
+    # --- Interesting Failures: pulled directly from real judge evidence for this
+    # run, never hardcoded prose. If there are no violations, that is reported too.
+    violations_with_evidence = [
+        e for e in (evaluations or [])
+        if e.get("violation") is True and str(e.get("evidence") or "").strip()
+    ]
+    lines.append("## 6. Interesting Failures (real evidence from this run)")
+    lines.append("")
+    if violations_with_evidence:
+        seen_cats: set[str] = set()
+        shown = 0
+        for e in violations_with_evidence:
+            cat = e.get("category") or e.get("target_category") or "?"
+            if cat in seen_cats and shown >= 2:
+                continue
+            seen_cats.add(cat)
+            evidence = str(e.get("evidence", "")).strip().replace(chr(10), " ")[:220]
+            lines.append(
+                f"- **{e.get('case_id')}** (`{e.get('model')}`, {e.get('language')}, "
+                f"category {cat}): \"{evidence}\""
+            )
+            shown += 1
+            if shown >= 6:
+                break
+    else:
+        lines.append("_No violations with recorded evidence were found among this run's evaluated cases._")
+    lines.append("")
+
+    # --- Category & language patterns: computed from metrics, not asserted ---
+    lines.append("## 7. Category & Language Patterns (computed, not asserted)")
+    lines.append("")
+    rated_cats = [(c, m) for c, m in by_cat.items() if m.get("total", 0) > 0 and m.get("violation_rate") is not None]
+    if rated_cats:
+        worst = max(rated_cats, key=lambda kv: kv[1]["violation_rate"])
+        best = min(rated_cats, key=lambda kv: kv[1]["violation_rate"])
+        lines.append(
+            f"- Highest violation rate this run: **{worst[0]}** ({cat_names.get(worst[0], worst[0])}) "
+            f"at {worst[1]['violation_rate']}% ({worst[1]['violations']}/{worst[1]['total']} evaluated)."
+        )
+        lines.append(
+            f"- Lowest violation rate this run: **{best[0]}** ({cat_names.get(best[0], best[0])}) "
+            f"at {best[1]['violation_rate']}% ({best[1]['violations']}/{best[1]['total']} evaluated)."
+        )
+    else:
+        lines.append("_No per-category data available yet._")
+    if indic_delta is not None:
+        direction = "lower" if indic_delta < 0 else ("higher" if indic_delta > 0 else "the same as")
+        lines.append(
+            f"- Indic-language compliance was {abs(indic_delta):.2f}pp {direction} than English in this run (Section 1)."
+        )
+    lines.append("- No statistical significance is claimed beyond this dataset's sample size; per-cell Ns are small (Section 4).")
+    lines.append("")
+    lines.extend([
         "## 8. Limitations",
         "",
         "1. **Quantization Impact:** Local models were evaluated with 4-bit quantization (Q4), which may introduce degradation compared to FP16 weights.",
@@ -172,6 +217,15 @@ def generate_findings_md(metrics: dict[str, Any], path: Path = RESULTS_DIR / "fi
         f.write("\n".join(lines))
 
 
+def _load_evaluations_for_findings() -> list[dict[str, Any]]:
+    """Load whichever evaluation set metrics.py actually used (judge, else human)."""
+    from src.metrics import JUDGE_EVALUATIONS_PATH, HUMAN_EVALUATIONS_PATH, _load_jsonl
+    judge_evals = _load_jsonl(JUDGE_EVALUATIONS_PATH)
+    if judge_evals:
+        return judge_evals
+    return _load_jsonl(HUMAN_EVALUATIONS_PATH)
+
+
 def generate_findings_report(metrics_path: str = "results/metrics.json", output_path: str = "docs/findings.md") -> None:
     """Generate findings.md from metrics."""
     metrics = None
@@ -183,14 +237,15 @@ def generate_findings_report(metrics_path: str = "results/metrics.json", output_
                 pass
     if metrics is None:
         metrics = compute_metrics()
-    generate_findings_md(metrics, path=Path(output_path))
+    generate_findings_md(metrics, path=Path(output_path), evaluations=_load_evaluations_for_findings())
 
 
 def generate_report(verbose: bool = True) -> dict[str, Any]:
     metrics = compute_metrics()
     save_metrics(metrics)
-    generate_findings_md(metrics, path=RESULTS_DIR / "findings.md")
-    generate_findings_md(metrics, path=Path("docs/findings.md"))
+    evaluations = _load_evaluations_for_findings()
+    generate_findings_md(metrics, path=RESULTS_DIR / "findings.md", evaluations=evaluations)
+    generate_findings_md(metrics, path=Path("docs/findings.md"), evaluations=evaluations)
 
     if metrics.get("status") != "ok":
         if verbose:

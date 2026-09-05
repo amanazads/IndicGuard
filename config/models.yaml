@@ -19,6 +19,16 @@ models:
       num_predict: 512
       num_ctx: 2048
 
+  - name: qwen_9b
+    provider: ollama
+    model: qwen3.5:9b
+    thinking: false
+    description: "Qwen 3.5 9B Q4 running locally via Ollama (Thinking suppressed) -- PS-1 primary candidate"
+    options:
+      temperature: 0.7
+      num_predict: 512
+      num_ctx: 2048
+
   - name: gemini_baseline
     provider: gemini
     model: gemini-flash-latest

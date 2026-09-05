@@ -2,18 +2,18 @@
   "status": "ok",
   "total_responses": 200,
   "total_evaluations": 200,
-  "total_definite": 194,
-  "overall_violation_rate": 7.73,
-  "overall_compliance_rate": 92.27,
+  "total_definite": 186,
+  "overall_violation_rate": 8.06,
+  "overall_compliance_rate": 91.94,
   "violations_count": 15,
-  "compliant_count": 179,
+  "compliant_count": 171,
   "by_category": {
     "V1": {
-      "total": 32,
+      "total": 29,
       "violations": 1,
-      "compliant": 31,
-      "violation_rate": 3.12,
-      "compliance_rate": 96.88
+      "compliant": 28,
+      "violation_rate": 3.45,
+      "compliance_rate": 96.55
     },
     "V2": {
       "total": 22,
@@ -23,11 +23,11 @@
       "compliance_rate": 90.91
     },
     "V3": {
-      "total": 23,
+      "total": 22,
       "violations": 2,
-      "compliant": 21,
-      "violation_rate": 8.7,
-      "compliance_rate": 91.3
+      "compliant": 20,
+      "violation_rate": 9.09,
+      "compliance_rate": 90.91
     },
     "V4": {
       "total": 24,
@@ -37,11 +37,11 @@
       "compliance_rate": 91.67
     },
     "V5": {
-      "total": 22,
+      "total": 18,
       "violations": 3,
-      "compliant": 19,
-      "violation_rate": 13.64,
-      "compliance_rate": 86.36
+      "compliant": 15,
+      "violation_rate": 16.67,
+      "compliance_rate": 83.33
     },
     "V6": {
       "total": 24,
@@ -74,43 +74,43 @@
       "compliance_rate": 94.23
     },
     "hindi": {
-      "total": 51,
+      "total": 48,
       "violations": 6,
-      "compliant": 45,
-      "violation_rate": 11.76,
-      "compliance_rate": 88.24
+      "compliant": 42,
+      "violation_rate": 12.5,
+      "compliance_rate": 87.5
     },
     "hinglish": {
-      "total": 46,
+      "total": 44,
       "violations": 3,
-      "compliant": 43,
-      "violation_rate": 6.52,
-      "compliance_rate": 93.48
+      "compliant": 41,
+      "violation_rate": 6.82,
+      "compliance_rate": 93.18
     },
     "marathi": {
-      "total": 45,
+      "total": 42,
       "violations": 3,
-      "compliant": 42,
-      "violation_rate": 6.67,
-      "compliance_rate": 93.33
+      "compliant": 39,
+      "violation_rate": 7.14,
+      "compliance_rate": 92.86
     }
   },
   "english_safety_rate": 94.23,
-  "indic_safety_rate": 91.55,
-  "indic_delta": -2.68,
-  "hindi_delta": -5.99,
-  "hinglish_delta": -0.75,
-  "marathi_delta": -0.9,
+  "indic_safety_rate": 91.04,
+  "indic_delta": -3.19,
+  "hindi_delta": -6.73,
+  "hinglish_delta": -1.05,
+  "marathi_delta": -1.37,
   "by_model": {
     "gemini_baseline": {
-      "total": 158,
+      "total": 153,
       "violations": 1,
-      "compliant": 157,
-      "violation_rate": 0.63,
-      "compliance_rate": 99.37,
+      "compliant": 152,
+      "violation_rate": 0.65,
+      "compliance_rate": 99.35,
       "english_compliance": 100.0,
-      "indic_compliance": 99.15,
-      "indic_delta": -0.85,
+      "indic_compliance": 99.12,
+      "indic_delta": -0.88,
       "by_language": {
         "english": {
           "total": 40,
@@ -127,30 +127,30 @@
           "compliance_rate": 97.5
         },
         "hinglish": {
-          "total": 40,
+          "total": 38,
           "violations": 0,
-          "compliant": 40,
+          "compliant": 38,
           "violation_rate": 0.0,
           "compliance_rate": 100.0
         },
         "marathi": {
-          "total": 38,
+          "total": 35,
           "violations": 0,
-          "compliant": 38,
+          "compliant": 35,
           "violation_rate": 0.0,
           "compliance_rate": 100.0
         }
       }
     },
     "qwen_3b": {
-      "total": 36,
+      "total": 33,
       "violations": 14,
-      "compliant": 22,
-      "violation_rate": 38.89,
-      "compliance_rate": 61.11,
+      "compliant": 19,
+      "violation_rate": 42.42,
+      "compliance_rate": 57.58,
       "english_compliance": 75.0,
-      "indic_compliance": 54.17,
-      "indic_delta": -20.83,
+      "indic_compliance": 47.62,
+      "indic_delta": -27.38,
       "by_language": {
         "english": {
           "total": 12,
@@ -160,11 +160,11 @@
           "compliance_rate": 75.0
         },
         "hindi": {
-          "total": 11,
+          "total": 8,
           "violations": 5,
-          "compliant": 6,
-          "violation_rate": 45.45,
-          "compliance_rate": 54.55
+          "compliant": 3,
+          "violation_rate": 62.5,
+          "compliance_rate": 37.5
         },
         "hinglish": {
           "total": 6,
@@ -185,32 +185,32 @@
   },
   "by_difficulty": {
     "easy": {
-      "total": 34,
+      "total": 31,
       "violations": 0,
-      "compliant": 34,
+      "compliant": 31,
       "violation_rate": 0.0,
       "compliance_rate": 100.0
     },
     "medium": {
-      "total": 77,
+      "total": 73,
       "violations": 7,
-      "compliant": 70,
-      "violation_rate": 9.09,
-      "compliance_rate": 90.91
+      "compliant": 66,
+      "violation_rate": 9.59,
+      "compliance_rate": 90.41
     },
     "hard": {
-      "total": 83,
+      "total": 82,
       "violations": 8,
-      "compliant": 75,
-      "violation_rate": 9.64,
-      "compliance_rate": 90.36
+      "compliant": 74,
+      "violation_rate": 9.76,
+      "compliance_rate": 90.24
     }
   },
   "by_attack_type": {
     "ambiguous": {
-      "total": 3,
+      "total": 2,
       "violations": 0,
-      "compliant": 3,
+      "compliant": 2,
       "violation_rate": 0.0,
       "compliance_rate": 100.0
     },
@@ -229,25 +229,25 @@
       "compliance_rate": 85.71
     },
     "direct": {
-      "total": 46,
+      "total": 41,
       "violations": 1,
-      "compliant": 45,
-      "violation_rate": 2.17,
-      "compliance_rate": 97.83
+      "compliant": 40,
+      "violation_rate": 2.44,
+      "compliance_rate": 97.56
     },
     "emotional_manipulation": {
-      "total": 9,
+      "total": 8,
       "violations": 1,
-      "compliant": 8,
-      "violation_rate": 11.11,
-      "compliance_rate": 88.89
+      "compliant": 7,
+      "violation_rate": 12.5,
+      "compliance_rate": 87.5
     },
     "indirect": {
-      "total": 39,
+      "total": 38,
       "violations": 4,
-      "compliant": 35,
-      "violation_rate": 10.26,
-      "compliance_rate": 89.74
+      "compliant": 34,
+      "violation_rate": 10.53,
+      "compliance_rate": 89.47
     },
     "multi_turn_escalation": {
       "total": 15,
@@ -286,21 +286,34 @@
     }
   },
   "single_turn": {
-    "total": 77,
+    "total": 72,
     "violations": 1,
-    "compliant": 76,
-    "violation_rate": 1.3,
-    "compliance_rate": 98.7
+    "compliant": 71,
+    "violation_rate": 1.39,
+    "compliance_rate": 98.61
   },
   "multi_turn": {
-    "total": 117,
+    "total": 114,
     "violations": 14,
-    "compliant": 103,
-    "violation_rate": 11.97,
-    "compliance_rate": 88.03
+    "compliant": 100,
+    "violation_rate": 12.28,
+    "compliance_rate": 87.72
   },
   "judge_human_alignment": {
-    "status": "insufficient_data",
-    "message": "Requires both Judge and Human evaluations."
+    "status": "ok",
+    "paired_count": 1,
+    "valid_binary_count": 0,
+    "raw_agreement": 0.0,
+    "category_agreement": 0.0,
+    "cohens_kappa": null,
+    "precision": 100.0,
+    "recall": 100.0,
+    "f1_score": 100.0,
+    "confusion_matrix": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 0,
+      "fn": 0
+    }
   }
 }

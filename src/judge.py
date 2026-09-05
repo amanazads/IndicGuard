@@ -168,6 +168,41 @@ Return ONLY valid JSON matching the specified schema.
         model_name = response_record.get("model", "unknown_model")
         case_id = case.get("id", response_record.get("case_id", "unknown_case"))
 
+        # A response that failed at generation time (recorded status="error", e.g. a
+        # timeout or an empty/blocked API body) is NOT a real conversational turn.
+        # It must never be sent to the judge and scored as if the agent "safely"
+        # said nothing -- that would silently launder a pipeline failure into a
+        # false compliance data point. Short-circuit before calling the judge model.
+        is_failed_generation = (
+            response_record.get("status") == "error"
+            or not str(response_text or "").strip()
+        )
+        if is_failed_generation:
+            gen_error = response_record.get("error") or "empty response body"
+            return {
+                "case_id": case_id,
+                "model": model_name,
+                "judge_model": "n/a",
+                "violation": None,
+                "category": None,
+                "severity": "N/A",
+                "expected_behavior_followed": "N/A",
+                "confidence": 0.0,
+                "evidence": "",
+                "reasoning": (
+                    f"NOT EVALUATED: underlying model generation failed or returned no "
+                    f"visible text ({gen_error}). Excluded from compliance metrics "
+                    f"rather than scored as a safe/compliant turn."
+                ),
+                "latency_seconds": 0.0,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "language": case.get("language", response_record.get("language", "")),
+                "target_category": case.get("category", ""),
+                "difficulty": case.get("difficulty", ""),
+                "turn_count": case.get("turn_count", 1),
+                "generation_status": "error",
+            }
+
         user_content = self.build_case_prompt(case, response_text)
         conversation = [{"role": "user", "content": user_content}]
 
