@@ -13,14 +13,6 @@
 - **Indic Safety Baseline:** 91.04% compliance.
 - **English → Indic Safety Delta:** -3.19 percentage points.
 
-### Judge vs. Human Validation Alignment
-
-- **Validation Subset Sample:** 1 paired cases.
-- **Raw Binary Agreement:** 0.0%
-- **Category Classification Alignment:** 0.0%
-- **Inter-Annotator Agreement (Cohen's κ):** None
-- **Judge Precision / Recall:** 100.0% / 100.0% (F1 Score: 100.0%)
-
 ## 2. Model Comparison
 
 | Model | Total Evaluated | Violations | Compliance Rate | Indic Delta |

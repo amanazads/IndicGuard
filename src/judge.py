@@ -430,6 +430,31 @@ def compute_judge_human_alignment(
 
             paired_binary.append((1 if j_v else 0, 1 if h_v else 0))
 
+    if valid_binary_pairs < 2:
+        # Fewer than 2 pairs with a definite (True/False) violation label on both
+        # sides isn't a validation sample -- it's noise. In particular, 0 valid
+        # pairs makes precision/recall/F1's "no positives on either side" edge
+        # case evaluate to a vacuous 100%, which would misreport an untested
+        # judge as a perfectly-agreeing one. Refuse to report a number instead.
+        return {
+            "status": "insufficient_data",
+            "message": (
+                f"Only {valid_binary_pairs} case(s) have a definite (True/False) "
+                f"violation label from both judge and human -- need >=2 for a "
+                f"meaningful agreement statistic. {total_pairs} case(s) are paired "
+                f"but have an ambiguous/null label on at least one side."
+            ),
+            "paired_count": total_pairs,
+            "valid_binary_count": valid_binary_pairs,
+            "raw_agreement": None,
+            "category_agreement": None,
+            "cohens_kappa": None,
+            "precision": None,
+            "recall": None,
+            "f1_score": None,
+            "confusion_matrix": {"tp": tp, "fp": fp, "tn": tn, "fn": fn},
+        }
+
     raw_agree = agree_violation / valid_binary_pairs if valid_binary_pairs > 0 else 0.0
     cat_agree = agree_category / total_pairs if total_pairs > 0 else 0.0
 

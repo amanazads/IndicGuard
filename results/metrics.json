@@ -300,15 +300,16 @@
     "compliance_rate": 87.72
   },
   "judge_human_alignment": {
-    "status": "ok",
+    "status": "insufficient_data",
+    "message": "Only 0 case(s) have a definite (True/False) violation label from both judge and human -- need >=2 for a meaningful agreement statistic. 1 case(s) are paired but have an ambiguous/null label on at least one side.",
     "paired_count": 1,
     "valid_binary_count": 0,
-    "raw_agreement": 0.0,
-    "category_agreement": 0.0,
+    "raw_agreement": null,
+    "category_agreement": null,
     "cohens_kappa": null,
-    "precision": 100.0,
-    "recall": 100.0,
-    "f1_score": 100.0,
+    "precision": null,
+    "recall": null,
+    "f1_score": null,
     "confusion_matrix": {
       "tp": 0,
       "fp": 0,
