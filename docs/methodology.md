@@ -47,7 +47,7 @@ To ensure benchmark reproducibility and prevent confounding variables, IndicGuar
 - **Conversation Structure:** Conversational turns alternate strictly between `user` and `assistant`. In multi-turn scenarios, prior user turns are bridged with standard neutral turn markers (`"[Agent acknowledges and continues the call]"`) so that the model generates its response to the final adversarial turn under realistic conversational context.
 
 ### 3.2 Independent Variables
-- **Model Architecture & Size:** Local open-weight models (`qwen2.5:3b`, `qwen3.5:4b` via Ollama) vs Hosted baseline (`gemini-flash-latest`).
+- **Model Architecture & Size:** Local open-weight models (`qwen2.5:3b`, `qwen3.5:4b`, `qwen3.5:9b` via Ollama) vs Hosted baseline (`gemini-flash-latest`). As of this writing, `qwen2.5:3b` (partial, 40-case sweep) and `gemini-flash-latest` (full dataset) have been run and judged; `qwen3.5:4b` and `qwen3.5:9b` are configured but not yet run -- see the top-level README's Models section for current status.
 - **Language / Vernacular:** English, Hindi (Devanagari script), Hinglish (Romanized code-mixing), and Marathi.
 - **Adversarial Attack Structure:** Single-turn direct vs Multi-turn sustained pressure (provocation, false paid claims, bereavement/medical crisis, prompt injection, third-party solicitation).
 
@@ -133,6 +133,7 @@ IndicGuard employs a **dual evaluation architecture** combining scalable automat
 ### 5.2 Reserved Human Validation Subset
 - **Purpose:** To verify automated judge calibration, a stratified 32-case held-out subset (`data/heldout_cases.jsonl`) is reserved for independent human auditing.
 - **Rater Schema:** Raters evaluate binary violation (`Yes`/`No`), category (V1–V8), severity, and provide verbatim evidence.
+- **Blind Rating Protocol:** the dashboard's Human Validation page does not display a case's authored target category until the rater has submitted a verdict for it (or the rater explicitly opts to reveal it early through a separate expander), so the human label is not anchored on the category the case was designed to test.
 - **Inter-Rater Agreement:** IndicGuard computes raw agreement ($P_o$), category agreement %, and Cohen's Kappa ($\kappa$):
   $$\kappa = \frac{P_o - P_e}{1 - P_e}$$
 - **Intellectual Honesty:** Human validation metrics are reported strictly when genuine human annotations have been submitted. When pending, the system explicitly labels them as *"Pending Independent Annotations"* rather than fabricating synthetic rater agreement.
@@ -161,6 +162,10 @@ All metrics feature explicit denominators and transparent error handling:
 
 6. **Error Accounting:** Responses that fail due to connection timeouts or API unavailability are logged with `status: "error"` and excluded from the compliance denominator.
 
+7. **Category-Level Aggregation (target category only):** Per-category violation and compliance rates (V1 through V8) are computed strictly from each case's authored *target* category, never from the judge's own predicted category. An earlier version of `src/metrics.py` counted a case toward a category if *either* the judge's category *or* the target category matched, which could double-count a single evaluation across two categories whenever the judge disagreed with the target label. This is fixed: `by_category` now filters on `target_category` only.
+
+8. **Judge/Target Category Agreement (reported separately):** How often the judge's predicted category matches the case's target category, among responses flagged as violations, is tracked as its own statistic (`category_judge_agreement` in `results/metrics.json`, both per-category and overall) rather than being mixed into the violation-rate numbers above. This keeps "how often does this category see a violation" and "how often does the judge agree with the label we expected" as two distinct, separately reportable questions.
+
 ---
 
 ## 7. Limitations & AI Assistance Disclosure
@@ -171,6 +176,8 @@ All metrics feature explicit denominators and transparent error handling:
 - **Evolving Vernacular Expressions:** Regional slang and code-mixing evolve rapidly; while Hinglish is comprehensively tested, regional dialects remain an ongoing area of expansion.
 - **Local judge reliability:** a 2B-parameter judge is materially less reliable at strict structured-JSON output than a larger hosted model. The pipeline already handles this safely -- `src/judge.py::clean_json_response` falls back to `violation: None` (excluded from compliance metrics, never silently counted as compliant) on any unparseable judge output -- but it means a local judge will likely produce a *lower judged-case count*, not wrong verdicts. This is a deliberate reliability/architecture-purity tradeoff, not an oversight.
 - **Judge consistency across models:** because the default judge changed from Gemini to a local Qwen model during development, results produced by different runs may have been scored by different judges. Each judge evaluation record's `judge_model` field states which judge scored it; before drawing final cross-model conclusions, re-judge all responses with one judge (`python scripts/run_judge.py --overwrite`) for a fully consistent comparison.
+- **Hosted baseline data residency:** the `gemini_baseline` model is called through the standard Google Gemini Developer API rather than a pinned-region Vertex AI endpoint, and Google does not publish an India-specific processing guarantee for that API surface. This is disclosed as an open risk relative to the challenge's rule against processing data outside India, not asserted as resolved -- see the top-level README's Limitations section for the full disclosure and possible remediation.
+- **Human validation incomplete:** the judge-human alignment pipeline is implemented and unit-tested, but only one trial rating exists in storage as of this writing, so `judge_human_alignment` correctly reports `insufficient_data` rather than a real Cohen's kappa. This methodology document describes the intended validation design; it does not claim that design has been executed at scale yet.
 
 ### 7.2 AI Assistance Disclosure
 AI development tools (Google Antigravity IDE) were utilized for test scaffolding, dashboard layout, and boilerplate generation. Benchmark case formulation, regulatory mapping, taxonomy design, and experimental validation were conducted under human supervision. Automated LLM judging is used for scalable evaluation and strictly validated against the held-out human annotation subset.

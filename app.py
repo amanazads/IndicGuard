@@ -100,7 +100,6 @@ from src.report import generate_findings_report
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="IndicGuard",
-    page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -108,7 +107,7 @@ st.set_page_config(
 # ── Custom CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
@@ -116,7 +115,7 @@ html, body, [class*="css"] {
 
 /* Sidebar */
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    background: #0f172a;
     border-right: 1px solid #334155;
 }
 section[data-testid="stSidebar"] * {
@@ -125,47 +124,46 @@ section[data-testid="stSidebar"] * {
 
 /* Header */
 .indicguard-header {
-    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
-    border-radius: 12px;
-    padding: 26px 32px;
-    margin-bottom: 24px;
-    border: 1px solid #1e40af33;
+    background: #0f172a;
+    border-radius: 6px;
+    padding: 20px 28px;
+    margin-bottom: 20px;
+    border: 1px solid #334155;
+    border-left: 3px solid #3b82f6;
 }
 .indicguard-title {
-    font-size: 2.2rem;
-    font-weight: 800;
-    letter-spacing: -0.5px;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.2px;
     color: #f8fafc;
     margin: 0;
-    background: linear-gradient(90deg, #60a5fa, #a78bfa);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    text-transform: none;
 }
 .indicguard-subtitle {
     color: #94a3b8;
-    font-size: 0.95rem;
+    font-size: 0.88rem;
     margin-top: 4px;
     font-weight: 400;
 }
 
 /* Metric cards */
 .metric-card {
-    background: linear-gradient(135deg, #1e293b, #0f172a);
+    background: #131c2e;
     border: 1px solid #334155;
-    border-radius: 10px;
-    padding: 16px 12px;
+    border-radius: 6px;
+    padding: 14px 12px;
     text-align: center;
 }
 .metric-value {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: #60a5fa;
 }
 .metric-label {
-    font-size: 0.72rem;
+    font-size: 0.70rem;
     color: #94a3b8;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     margin-top: 4px;
 }
 
@@ -173,7 +171,7 @@ section[data-testid="stSidebar"] * {
 .response-box {
     background: #0f172a;
     border: 1px solid #334155;
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 14px;
     font-size: 0.90rem;
     color: #e2e8f0;
@@ -182,33 +180,33 @@ section[data-testid="stSidebar"] * {
     margin-bottom: 8px;
 }
 
-/* Verdict Badges */
+/* Verdict badges -- flat, solid colors, no gradients */
 .violation-tag {
     display: inline-block;
-    padding: 4px 14px;
-    border-radius: 20px;
-    font-size: 0.80rem;
-    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 3px;
+    font-size: 0.78rem;
+    font-weight: 600;
     background: #450a0a;
     border: 1px solid #dc2626;
     color: #fca5a5;
 }
 .safe-tag {
     display: inline-block;
-    padding: 4px 14px;
-    border-radius: 20px;
-    font-size: 0.80rem;
-    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 3px;
+    font-size: 0.78rem;
+    font-weight: 600;
     background: #052e16;
     border: 1px solid #16a34a;
     color: #86efac;
 }
 .unclear-tag {
     display: inline-block;
-    padding: 4px 14px;
-    border-radius: 20px;
-    font-size: 0.80rem;
-    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 3px;
+    font-size: 0.78rem;
+    font-weight: 600;
     background: #1e293b;
     border: 1px solid #64748b;
     color: #cbd5e1;
@@ -216,10 +214,22 @@ section[data-testid="stSidebar"] * {
 
 .judge-card {
     background: #0f172a;
-    border: 1px solid #3b82f6;
-    border-radius: 10px;
-    padding: 16px;
+    border: 1px solid #334155;
+    border-left: 3px solid #3b82f6;
+    border-radius: 6px;
+    padding: 14px 16px;
     margin-top: 10px;
+}
+
+.status-note {
+    background: #131c2e;
+    border: 1px solid #334155;
+    border-left: 3px solid #64748b;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    color: #cbd5e1;
+    margin-bottom: 12px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -292,7 +302,7 @@ DIFFICULTIES = ["easy", "medium", "hard"]
 with st.sidebar:
     st.markdown("""
     <div style="padding: 8px 0 16px 0;">
-        <div style="font-size: 1.4rem; font-weight: 800; color: #60a5fa;">🛡️ IndicGuard</div>
+        <div style="font-size: 1.4rem; font-weight: 800; color: #60a5fa;">IndicGuard</div>
         <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">Multilingual Adversarial Safety Benchmark</div>
     </div>
     """, unsafe_allow_html=True)
@@ -300,17 +310,17 @@ with st.sidebar:
     page = st.radio(
         "Navigation",
         [
-            "📊 Overview",
-            "⚡ Run Benchmark",
-            "🤖 LLM-as-a-Judge",
-            "🔍 Human Validation",
-            "🤖 Model Comparison",
-            "🌐 Language Analysis",
-            "⚠️ Violation Analysis",
-            "🔄 Multi-turn Analysis",
-            "💥 Failure Cases",
-            "🚀 Live Test",
-            "📖 Methodology",
+            "Overview",
+            "Run Benchmark",
+            "LLM-as-a-Judge",
+            "Human Validation",
+            "Model Comparison",
+            "Language Analysis",
+            "Violation Analysis",
+            "Multi-turn Analysis",
+            "Failure Cases",
+            "Live Test",
+            "Methodology",
         ],
         label_visibility="collapsed",
     )
@@ -342,7 +352,7 @@ def metric_card(label: str, value: str, col):
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: OVERVIEW
 # ═══════════════════════════════════════════════════════════════════════════
-if page == "📊 Overview":
+if page == "Overview":
     header("INDICGUARD", "Automated Multilingual Safety Benchmark for Collections LLMs")
 
     cases = load_cases()
@@ -374,7 +384,7 @@ if page == "📊 Overview":
 
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("🌐 Evaluation by Language")
+        st.subheader("Evaluation by Language")
         by_lang = metrics.get("by_language", {})
         if by_lang:
             lang_rows = []
@@ -391,7 +401,7 @@ if page == "📊 Overview":
             st.info("Run LLM Judge to see language evaluation metrics.")
 
     with c2:
-        st.subheader("⚠️ Evaluation by Category (V1–V8)")
+        st.subheader("Evaluation by Category (V1–V8)")
         by_cat = metrics.get("by_category", {})
         if by_cat:
             cat_rows = []
@@ -407,18 +417,148 @@ if page == "📊 Overview":
         else:
             st.info("Run LLM Judge to see category evaluation metrics.")
 
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("Key Findings")
+    st.caption("Derived only from the stored metrics above -- nothing here is asserted independently of results/metrics.json.")
+
+    findings = []
+    by_cat = metrics.get("by_category", {})
+    by_lang = metrics.get("by_language", {})
+
+    if metrics.get("total_definite"):
+        findings.append(
+            f"Overall compliance rate is {comp_rate} across {metrics['total_definite']} judge-evaluated responses "
+            f"({metrics.get('violations_count', 0)} flagged violations)."
+        )
+
+    lang_deltas = {
+        "Hindi": metrics.get("hindi_delta"),
+        "Hinglish": metrics.get("hinglish_delta"),
+        "Marathi": metrics.get("marathi_delta"),
+    }
+    lang_deltas = {k: v for k, v in lang_deltas.items() if v is not None}
+    if lang_deltas:
+        worst_lang = min(lang_deltas, key=lambda k: lang_deltas[k])
+        findings.append(
+            f"{worst_lang} shows the largest compliance gap vs. English at {lang_deltas[worst_lang]:+.2f} pp "
+            f"(overall Indic delta: {metrics.get('indic_delta', 'N/A')} pp)."
+        )
+
+    if by_cat:
+        rated_cats = {c: cm["violation_rate"] for c, cm in by_cat.items() if cm.get("total")}
+        if rated_cats:
+            worst_cat = max(rated_cats, key=lambda c: rated_cats[c])
+            best_cat = min(rated_cats, key=lambda c: rated_cats[c])
+            findings.append(
+                f"Highest violation rate observed in {worst_cat} ({CATEGORIES.get(worst_cat, '')}) at "
+                f"{rated_cats[worst_cat]}% (n={by_cat[worst_cat]['total']}); lowest in {best_cat} "
+                f"({CATEGORIES.get(best_cat, '')}) at {rated_cats[best_cat]}% (n={by_cat[best_cat]['total']})."
+            )
+
+    single_t = metrics.get("single_turn", {})
+    multi_t = metrics.get("multi_turn", {})
+    if single_t.get("total") and multi_t.get("total"):
+        findings.append(
+            f"Multi-turn cases show a {multi_t.get('violation_rate', 0)}% violation rate "
+            f"(n={multi_t['total']}) vs. {single_t.get('violation_rate', 0)}% for single-turn cases (n={single_t['total']})."
+        )
+
+    if alignment.get("status") == "ok":
+        findings.append(
+            f"Automated judge agrees with human validation on {alignment.get('raw_agreement')}% of paired cases "
+            f"(Cohen's kappa = {alignment.get('cohens_kappa')}, n={alignment.get('paired_count')})."
+        )
+    else:
+        findings.append(
+            "Human validation currently has too few paired cases for a reliable Cohen's kappa estimate "
+            "(see Human Validation page) -- treat judge-only numbers above as unvalidated against human ground truth."
+        )
+
+    if findings:
+        for f in findings:
+            st.markdown(f"- {f}")
+    else:
+        st.info("Run the benchmark and LLM Judge to populate key findings.")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("Benchmark Coverage")
+    st.caption("Which configured models have actually been run and judged, vs. configured but not yet benchmarked.")
+
+    _configs = load_model_configs()
+    _by_model = metrics.get("by_model", {})
+    _resp_counts = Counter(r["model"] for r in responses)
+    _total_cases = len(cases)
+    coverage_rows = []
+    for cfg in _configs:
+        n_resp = _resp_counts.get(cfg.name, 0)
+        n_definite = _by_model.get(cfg.name, {}).get("total", 0)
+        if n_resp == 0:
+            status = "Configured, not yet benchmarked"
+        elif n_resp >= _total_cases:
+            status = "Evaluated (full dataset)"
+        else:
+            status = "Evaluated (partial)"
+        coverage_rows.append({
+            "Model": cfg.name,
+            "Provider": cfg.provider,
+            "Underlying Model": cfg.model,
+            "Responses Collected": n_resp,
+            "Judge-Evaluated (definite)": n_definite,
+            "Dataset Size": _total_cases,
+            "Status": status,
+        })
+    st.dataframe(pd.DataFrame(coverage_rows), use_container_width=True, hide_index=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("Evaluation Pipeline")
+    st.code(
+        "Adversarial Dataset (data/*.jsonl -- EN/HI/HL/MR, V1-V8)\n"
+        "        |\n"
+        "        v\n"
+        "Common Collections System Prompt (prompts/, frozen across all models)\n"
+        "        |\n"
+        "        v\n"
+        "Model Inference Layer\n"
+        "  - Open-weight models (Ollama: qwen_3b, qwen_4b, qwen_9b)\n"
+        "  - Hosted baseline (Gemini Flash -- single declared hosted API)\n"
+        "        |\n"
+        "        v\n"
+        "Raw Response Store (results/raw_responses.jsonl)\n"
+        "        |\n"
+        "        v\n"
+        "Safety Judge (src/judge.py -- local Qwen judge by default,\n"
+        "              Gemini fallback only if no judge: config is set)\n"
+        "        |\n"
+        "        v\n"
+        "Metrics Engine (src/metrics.py -- category / language / model /\n"
+        "                turn-count aggregation, judge-target agreement)\n"
+        "        |\n"
+        "        v\n"
+        "Dashboard (app.py) + docs/findings.md + results/*_summary.csv\n"
+        "\n"
+        "Held-out Human Validation Path (separate from the loop above):\n"
+        "Stratified 32-case subset (data/heldout_cases.jsonl)\n"
+        "        |\n"
+        "        v\n"
+        "Human Rater (blind to target category until verdict is submitted)\n"
+        "        |\n"
+        "        v\n"
+        "Judge <-> Human Agreement (Cohen's kappa, precision/recall/F1)",
+        language="text",
+    )
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: RUN BENCHMARK
 # ═══════════════════════════════════════════════════════════════════════════
-elif page == "⚡ Run Benchmark":
+elif page == "Run Benchmark":
     header("Run Benchmark", "Generate model responses across multilingual adversarial cases")
 
     configs = load_model_configs()
     model_names = [m.name for m in configs]
     responses = load_responses()
 
-    with st.expander("ℹ️ Benchmark Configuration", expanded=True):
+    with st.expander("Benchmark Configuration", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
             sel_models = st.multiselect("Models to Run", model_names, default=[model_names[0]] if model_names else [])
@@ -429,7 +569,7 @@ elif page == "⚡ Run Benchmark":
 
     st.markdown(f"**Current Captured Responses:** `{len(responses)}` records")
 
-    if st.button("🚀 START BENCHMARK RUN", type="primary"):
+    if st.button("START BENCHMARK RUN", type="primary"):
         if not sel_models:
             st.error("Please select at least one model.")
         else:
@@ -445,24 +585,45 @@ elif page == "⚡ Run Benchmark":
                 )
                 progress_bar.progress(1.0)
                 load_responses.clear()
-                st.success(f"✅ Run complete! Collected {len(res)} response(s).")
+                st.success(f"Run complete! Collected {len(res)} response(s).")
                 st.rerun()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: LLM-AS-A-JUDGE
 # ═══════════════════════════════════════════════════════════════════════════
-elif page == "🤖 LLM-as-a-Judge":
+elif page == "LLM-as-a-Judge":
     _judge_cfg = load_judge_config()
     _judge_label = f"{_judge_cfg.provider} / {_judge_cfg.model}" if _judge_cfg else "gemini / gemini-flash-latest (fallback -- no judge: section configured)"
     header("Automated LLM-as-a-Judge", f"Regulatory compliance evaluator ({_judge_label}) with Multilingual Rubrics")
+
+    with st.expander("How this pipeline works", expanded=False):
+        st.markdown(
+            """
+1. Each stored model response (`results/raw_responses.jsonl`) is paired with its adversarial case
+   (borrower turns, target category, expected safe behavior).
+2. The judge model (configured under `judge:` in `config/models.yaml`, local Qwen by default with the
+   declared Gemini baseline as fallback only if no `judge:` section is set) scores the pair against the
+   collections-safety rubric and returns a structured verdict: `violation`, `category`, `severity`,
+   `confidence`, `evidence`, `reasoning`.
+3. A response with an error status or an empty body is never sent to the judge and is never counted as
+   compliant -- `src/judge.py` short-circuits those cases to `violation: None` with an explicit
+   "not evaluated" reason, and `src/metrics.py` excludes them from every rate calculation.
+4. The judge's own predicted `category` is stored as-is and is never overwritten with the case's target
+   category -- category-level metrics elsewhere in this dashboard aggregate by target category only,
+   and judge/target agreement is reported separately (see Violation Analysis).
+5. This page's live batch run only updates `results/judge_evaluations.jsonl`, `results/metrics.json`, and
+   `docs/findings.md`. It does not fabricate or imply human validation -- that is a separate, smaller
+   process (see Human Validation) and is not claimed here.
+"""
+        )
 
     responses = load_responses()
     cases = load_cases()
     judge_evals = load_judge_evals()
 
     if not responses:
-        st.warning("No model responses found. Run the benchmark first from **⚡ Run Benchmark**.")
+        st.warning("No model responses found. Run the benchmark first from **Run Benchmark**.")
         st.stop()
 
     j_map = {(e["case_id"], e["model"]): e for e in judge_evals}
@@ -477,12 +638,12 @@ elif page == "🤖 LLM-as-a-Judge":
     if judge_evals:
         _judge_models_seen = sorted({e.get("judge_model", "?") for e in judge_evals})
         if len(_judge_models_seen) > 1:
-            st.warning(f"⚠️ Existing evaluations were scored by more than one judge: {', '.join(_judge_models_seen)}. Re-judge with `--overwrite` for a consistent comparison before drawing cross-model conclusions.")
+            st.warning(f"Existing evaluations were scored by more than one judge: {', '.join(_judge_models_seen)}. Re-judge with `--overwrite` for a consistent comparison before drawing cross-model conclusions.")
 
     st.markdown("---")
 
     # Batch execution controls
-    st.subheader("⚡ Batch Evaluation Execution")
+    st.subheader("Batch Evaluation Execution")
     col_b1, col_b2, col_b3 = st.columns([2, 2, 2])
     with col_b1:
         target_model = st.selectbox("Target Model", ["All Models"] + sorted({r["model"] for r in responses}))
@@ -490,7 +651,7 @@ elif page == "🤖 LLM-as-a-Judge":
         workers_count = st.slider("Worker Threads (Concurrency)", min_value=1, max_value=10, value=5)
     with col_b3:
         st.markdown("<br>", unsafe_allow_html=True)
-        run_judge_btn = st.button("▶ RUN AUTOMATED JUDGE BATCH", type="primary", use_container_width=True)
+        run_judge_btn = st.button("RUN AUTOMATED JUDGE BATCH", type="primary", use_container_width=True)
 
     if run_judge_btn:
         target_resps = responses
@@ -504,7 +665,7 @@ elif page == "🤖 LLM-as-a-Judge":
 
         def on_prog(done, tot, rec):
             p_bar.progress(done / tot)
-            status_txt.text(f"Evaluated [{done}/{tot}]: {rec.get('case_id')} ({rec.get('model')}) ➜ {'VIOLATION' if rec.get('violation') else 'SAFE'}")
+            status_txt.text(f"Evaluated [{done}/{tot}]: {rec.get('case_id')} ({rec.get('model')}) -- {'VIOLATION' if rec.get('violation') else 'SAFE'}")
 
         with st.spinner("Executing Automated LLM-as-a-Judge evaluations..."):
             new_evals = judge.evaluate_batch(
@@ -527,12 +688,12 @@ elif page == "🤖 LLM-as-a-Judge":
             save_metrics(metrics)
             generate_findings_report(metrics_path="results/metrics.json", output_path="docs/findings.md")
 
-            st.success(f"✅ Successfully evaluated {len(new_evals)} responses! Metrics & findings report updated.")
+            st.success(f"Successfully evaluated {len(new_evals)} responses! Metrics & findings report updated.")
             st.rerun()
 
     # Verdict Inspector
     st.markdown("---")
-    st.subheader("🔍 Judge Verdict Inspector")
+    st.subheader("Judge Verdict Inspector")
 
     f1, f2, f3, f4 = st.columns(4)
     with f1:
@@ -577,13 +738,13 @@ elif page == "🤖 LLM-as-a-Judge":
                 st.markdown(f"""<div class="response-box">{r.get('response', '(empty response)')}</div>""", unsafe_allow_html=True)
 
             with c_right:
-                st.markdown("### 🤖 Judge Verdict")
+                st.markdown("### Judge Verdict")
                 if ev.get("violation") is True:
-                    st.markdown("""<span class="violation-tag">🚨 VIOLATION DETECTED</span>""", unsafe_allow_html=True)
+                    st.markdown("""<span class="violation-tag">VIOLATION DETECTED</span>""", unsafe_allow_html=True)
                 elif ev.get("violation") is False:
-                    st.markdown("""<span class="safe-tag">✅ COMPLIANT (SAFE)</span>""", unsafe_allow_html=True)
+                    st.markdown("""<span class="safe-tag">COMPLIANT (SAFE)</span>""", unsafe_allow_html=True)
                 else:
-                    st.markdown("""<span class="unclear-tag">❓ UNCLEAR</span>""", unsafe_allow_html=True)
+                    st.markdown("""<span class="unclear-tag">UNCLEAR</span>""", unsafe_allow_html=True)
 
                 st.markdown(f"**Severity:** `{ev.get('severity')}` | **Confidence:** `{ev.get('confidence', 0.90):.0%}` | **Latency:** `{ev.get('latency_seconds', 'N/A')}s`")
                 if ev.get("evidence"):
@@ -595,10 +756,10 @@ elif page == "🤖 LLM-as-a-Judge":
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: HUMAN VALIDATION
 # ═══════════════════════════════════════════════════════════════════════════
-elif page == "🔍 Human Validation":
+elif page == "Human Validation":
     header("Human Validation Subset", "Human Ground Truth Auditing & Judge Alignment Verification")
 
-    st.info("ℹ️ **Validation Subset Requirement:** To ensure safety evaluations remain grounded and trustworthy, human raters audit a designated 32-case stratified subset. IndicGuard calculates inter-rater alignment (Cohen's κ) between the Automated Judge and Human ground truth.")
+    st.info("**Validation Subset Requirement:** To ensure safety evaluations remain grounded and trustworthy, human raters audit a designated 32-case stratified subset. IndicGuard calculates inter-rater alignment (Cohen's κ) between the Automated Judge and Human ground truth.")
 
     val_cases = load_validation_subset_cases()
     val_case_ids = {c["id"] for c in val_cases}
@@ -619,7 +780,7 @@ elif page == "🔍 Human Validation":
 
     # Alignment stats card
     alignment = compute_judge_human_alignment(judge_evals, human_evals)
-    with st.expander("🤝 Judge vs. Human Validation Alignment Scorecard", expanded=True):
+    with st.expander("Judge vs. Human Validation Alignment Scorecard", expanded=True):
         if alignment.get("status") == "ok":
             ac1, ac2, ac3, ac4, ac5 = st.columns(5)
             ac1.metric("Paired Cases", str(alignment.get("paired_count")))
@@ -649,10 +810,10 @@ elif page == "🔍 Human Validation":
 
     c_nav1, c_nav2, c_nav3 = st.columns([1, 1, 4])
     with c_nav1:
-        if st.button("◀ Prev Case", use_container_width=True) and st.session_state.val_idx > 0:
+        if st.button("Prev Case", use_container_width=True) and st.session_state.val_idx > 0:
             st.session_state.val_idx -= 1
     with c_nav2:
-        if st.button("Next Case ▶", use_container_width=True) and st.session_state.val_idx < total_val - 1:
+        if st.button("Next Case ", use_container_width=True) and st.session_state.val_idx < total_val - 1:
             st.session_state.val_idx += 1
     with c_nav3:
         st.markdown(f"**Validation Case {st.session_state.val_idx + 1} of {total_val}**")
@@ -662,16 +823,37 @@ elif page == "🔍 Human Validation":
     curr_judge = j_map.get(curr_key)
     curr_human = h_map.get(curr_key)
 
+    if "revealed_targets" not in st.session_state:
+        st.session_state.revealed_targets = set()
+    # Blind-rating protocol: a rater must not see the case's target category
+    # before submitting a verdict, to avoid anchoring the human judgment on
+    # the label the case was authored against. The target is revealed only
+    # after this rater has saved a verdict for this case in this session, or
+    # if a human evaluation already exists in storage (i.e. someone already
+    # rated it).
+    target_revealed = (curr_key in st.session_state.revealed_targets) or (curr_human is not None)
+
     cola, colb, colc = st.columns([2, 2, 2])
 
     with cola:
-        st.markdown("### 📋 ADVERSARIAL CASE")
+        st.markdown("### ADVERSARIAL CASE")
+        if target_revealed:
+            target_cat_display = f"`{curr_r.get('category')}` -- {CATEGORIES.get(curr_r.get('category', ''), '')}"
+        else:
+            target_cat_display = "hidden until verdict is submitted (blind rating)"
+
         st.markdown(f"""
         - **Case ID:** `{curr_r['case_id']}`
         - **Language:** {curr_r.get('language', '').capitalize()}
-        - **Target Category:** `{curr_r.get('category')}` — {CATEGORIES.get(curr_r.get('category', ''), '')}
+        - **Target Category:** {target_cat_display}
         - **Difficulty:** {curr_r.get('difficulty', 'N/A').capitalize()}
         """)
+
+        if not target_revealed:
+            with st.expander("Reveal target category (breaks blind rating -- use only after auditing)"):
+                if st.button("Reveal anyway", key=f"reveal_{curr_key[0]}_{curr_key[1]}"):
+                    st.session_state.revealed_targets.add(curr_key)
+                    st.rerun()
 
         if curr_r.get("borrower_turns"):
             st.markdown("**Borrower Conversation:**")
@@ -682,14 +864,14 @@ elif page == "🔍 Human Validation":
         st.info(curr_r.get("expected_behavior", "—"))
 
     with colb:
-        st.markdown("### 🤖 AGENT & AUTO-JUDGE")
+        st.markdown("### AGENT & AUTO-JUDGE")
         st.markdown(f"**Model:** `{curr_r['model']}`")
         st.markdown(f"""<div class="response-box">{curr_r.get('response', '(empty response)')}</div>""", unsafe_allow_html=True)
 
         if curr_judge:
             st.markdown(f"""
             <div class="judge-card">
-                <b>🤖 Auto-Judge Verdict:</b> {'🚨 Violation' if curr_judge.get('violation') else '✅ Safe'}<br>
+                <b>Auto-Judge Verdict:</b> {'Violation' if curr_judge.get('violation') else 'Safe'}<br>
                 <b>Confidence:</b> {curr_judge.get('confidence', 0.9):.0%}<br>
                 <b>Evidence:</b> <i>{curr_judge.get('evidence', 'None')}</i><br>
                 <b>Reasoning:</b> <small>{curr_judge.get('reasoning', '')}</small>
@@ -699,7 +881,7 @@ elif page == "🔍 Human Validation":
             st.info("No auto-judge evaluation recorded for this case yet.")
 
     with colc:
-        st.markdown("### ⚖️ HUMAN VALIDATION AUDIT")
+        st.markdown("### HUMAN VALIDATION AUDIT")
         def_viol = "Yes" if curr_human and curr_human.get("violation") is True else ("No" if curr_human and curr_human.get("violation") is False else "Unclear")
         viol_choice = st.radio(
             "Human Ground Truth:",
@@ -710,10 +892,15 @@ elif page == "🔍 Human Validation":
         )
 
         cat_list = ["None"] + list(CATEGORIES.keys())
-        def_cat = curr_human.get("category", curr_r.get("category", "None")) if curr_human else (curr_r.get("category") if viol_choice == "Yes" else "None")
+        def_cat = curr_human.get("category", "None") if curr_human else "None"
         if def_cat not in cat_list:
             def_cat = "None"
-        cat_choice = st.selectbox("Violation Category", cat_list, index=cat_list.index(def_cat), key=f"val_cat_{curr_key}")
+        cat_choice = st.selectbox(
+            "Violation Category (rate independently -- target category is hidden above)",
+            cat_list,
+            index=cat_list.index(def_cat),
+            key=f"val_cat_{curr_key}",
+        )
 
         sev_list = ["N/A", "Low", "Medium", "High", "Critical"]
         def_sev = curr_human.get("severity", "N/A") if curr_human else ("Medium" if viol_choice == "Yes" else "N/A")
@@ -722,7 +909,7 @@ elif page == "🔍 Human Validation":
         evidence_input = st.text_area("Evidence Quotation", value=curr_human.get("evidence", "") if curr_human else "", height=65, key=f"val_ev_{curr_key}")
         notes_input = st.text_area("Audit Notes", value=curr_human.get("notes", "") if curr_human else "", height=65, key=f"val_notes_{curr_key}")
 
-        if st.button("💾 SAVE HUMAN AUDIT", type="primary", use_container_width=True):
+        if st.button("SAVE HUMAN AUDIT", type="primary", use_container_width=True):
             viol_val = True if viol_choice == "Yes" else (False if viol_choice == "No" else None)
             save_evaluation(
                 case_id=curr_r["case_id"],
@@ -734,40 +921,87 @@ elif page == "🔍 Human Validation":
                 evidence=evidence_input,
                 notes=notes_input,
             )
+            st.session_state.revealed_targets.add(curr_key)
             load_human_evals.clear()
-            st.success(f"✅ Saved validation audit for {curr_r['case_id']}!")
+            st.success(f"Saved validation audit for {curr_r['case_id']}.")
             st.rerun()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: MODEL COMPARISON
 # ═══════════════════════════════════════════════════════════════════════════
-elif page == "🤖 Model Comparison":
+elif page == "Model Comparison":
     header("Model Comparison", "Comparative evaluation across open-weight & hosted models")
 
     metrics = compute_metrics()
     by_model = metrics.get("by_model", {})
+    _configs = load_model_configs()
+    _responses = load_responses()
+    _resp_counts = Counter(r["model"] for r in _responses)
+    _total_cases = len(load_cases())
+
+    evaluated_names = set(by_model.keys())
+    configured_names = {c.name for c in _configs}
+    unevaluated_names = configured_names - evaluated_names
 
     if not by_model:
         st.info("No evaluations found. Run LLM Judge first.")
         st.stop()
 
+    st.markdown(
+        "The models below are split by evaluation status. Only models with judge evaluations "
+        "get a compliance-rate row and chart -- a model with no responses collected yet has "
+        "nothing measured, so it is listed as configured-but-unevaluated with no fabricated numbers."
+    )
+
+    st.subheader("Evaluated Models")
     rows = []
     for m_name, m in by_model.items():
+        n_resp = _resp_counts.get(m_name, 0)
+        coverage = "full dataset" if n_resp >= _total_cases else f"partial -- {n_resp}/{_total_cases} cases"
         rows.append({
             "Model": m_name,
-            "Total Evaluated": m["total"],
+            "Coverage": coverage,
+            "Judge-Evaluated (definite)": m["total"],
             "Violations": m["violations"],
             "Compliance Rate": f"{m['compliance_rate']}%",
             "Indic Delta": f"{m.get('indic_delta', 0):+.2f} pp" if m.get("indic_delta") is not None else "N/A",
         })
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    model_df = pd.DataFrame(rows)
+    st.dataframe(model_df, use_container_width=True, hide_index=True)
+
+    chart_df = pd.DataFrame({
+        m_name: [m["compliance_rate"]] for m_name, m in by_model.items()
+    }, index=["Compliance Rate (%)"]).T
+    st.bar_chart(chart_df)
+    st.caption(
+        "Compliance rate per model, evaluated cases only. Sample sizes differ per model (see Coverage "
+        "column above) -- do not read partial-coverage models as directly comparable to full-dataset ones."
+    )
+
+    if unevaluated_names:
+        st.subheader("Configured but Not Yet Benchmarked")
+        st.markdown(
+            "These models are defined in `config/models.yaml` but have zero responses collected. "
+            "No compliance rate, chart, or ranking is shown for them -- doing so would be a fabricated result."
+        )
+        pending_rows = []
+        for c in _configs:
+            if c.name in unevaluated_names:
+                pending_rows.append({
+                    "Model": c.name,
+                    "Provider": c.provider,
+                    "Underlying Model": c.model,
+                    "Responses Collected": 0,
+                    "Status": "Not benchmarked",
+                })
+        st.dataframe(pd.DataFrame(pending_rows), use_container_width=True, hide_index=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: LANGUAGE ANALYSIS
 # ═══════════════════════════════════════════════════════════════════════════
-elif page == "🌐 Language Analysis":
+elif page == "Language Analysis":
     header("Language Analysis", "English vs Hindi, Hinglish, and Marathi safety boundary degradation")
 
     metrics = compute_metrics()
@@ -794,13 +1028,23 @@ elif page == "🌐 Language Analysis":
             "Compliance Rate": f"{lm['compliance_rate']}%",
             "Delta vs English": f"{delta:+.2f} pp" if delta is not None else ("Anchor" if l == "english" else "N/A"),
         })
-    st.dataframe(pd.DataFrame(lang_rows), use_container_width=True, hide_index=True)
+    lang_df = pd.DataFrame(lang_rows)
+    st.dataframe(lang_df, use_container_width=True, hide_index=True)
+
+    chart_df = pd.DataFrame({
+        row["Language"]: [by_lang[row["Language"].lower()]["compliance_rate"]] for row in lang_rows
+    }, index=["Compliance Rate (%)"]).T
+    st.bar_chart(chart_df)
+    st.caption(
+        f"Overall Indic delta (Hindi+Hinglish+Marathi vs. English): {metrics.get('indic_delta', 'N/A')} pp. "
+        "Deltas are percentage points, not ratios, and are computed only over judge-evaluated responses."
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: VIOLATION ANALYSIS
 # ═══════════════════════════════════════════════════════════════════════════
-elif page == "⚠️ Violation Analysis":
+elif page == "Violation Analysis":
     header("Violation Analysis", "V1–V8 Collections Safety Taxonomy breakdown")
 
     metrics = compute_metrics()
@@ -820,31 +1064,125 @@ elif page == "⚠️ Violation Analysis":
             "Violation Rate": f"{cm['violation_rate']}%",
             "Compliance Rate": f"{cm['compliance_rate']}%",
         })
-    st.dataframe(pd.DataFrame(cat_rows), use_container_width=True, hide_index=True)
+    cat_df = pd.DataFrame(cat_rows)
+    st.dataframe(cat_df, use_container_width=True, hide_index=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("Violation Rate Ranking (V1-V8)")
+    rank_df = pd.DataFrame({
+        row["Code"]: [by_cat[row["Code"]]["violation_rate"]] for row in cat_rows
+    }, index=["Violation Rate (%)"]).T
+    st.bar_chart(rank_df)
+    sample_sizes = ", ".join(f"{c}: n={cm['total']}" for c, cm in by_cat.items())
+    st.caption(
+        f"Ranking only -- each category has a small evaluated sample ({sample_sizes}). "
+        "A single additional violation shifts these rates noticeably, so treat the ordering as "
+        "directional rather than statistically conclusive."
+    )
+
+    cat_agreement = metrics.get("category_judge_agreement", {})
+    if cat_agreement:
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.subheader("Judge vs. Target-Category Agreement")
+        st.caption(
+            "Separate from the violation-rate table above: of the responses the judge flagged as a "
+            "violation, how often did the judge's own predicted category match the case's authored "
+            "target category? This does not affect the violation-rate numbers -- category-level "
+            "aggregation above always uses the case's target category only, never the judge's guess."
+        )
+        agree_rows = []
+        for c, ca in cat_agreement.get("by_category", {}).items():
+            agree_rows.append({
+                "Code": c,
+                "Target Violations": ca["target_violations"],
+                "Judge Agreed on Category": ca["judge_agreed"],
+                "Agreement Rate": f"{ca['agreement_rate']}%",
+            })
+        if agree_rows:
+            st.dataframe(pd.DataFrame(agree_rows), use_container_width=True, hide_index=True)
+        st.markdown(
+            f"**Overall agreement:** {cat_agreement.get('overall_agreement_rate', 'N/A')}% "
+            f"across {cat_agreement.get('overall_violations_compared', 0)} compared violations."
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: MULTI-TURN ANALYSIS
 # ═══════════════════════════════════════════════════════════════════════════
-elif page == "🔄 Multi-turn Analysis":
+elif page == "Multi-turn Analysis":
     header("Multi-turn Analysis", "Single-turn vs Multi-turn adversarial degradation")
 
     metrics = compute_metrics()
     single = metrics.get("single_turn", {})
     multi = metrics.get("multi_turn", {})
 
+    if not single.get("total") and not multi.get("total"):
+        st.info("No evaluations found. Run LLM Judge first.")
+        st.stop()
+
+    c1, c2 = st.columns(2)
+    metric_card("Single-turn Violation Rate", f"{single.get('violation_rate', 'N/A')}%", c1)
+    metric_card("Multi-turn Violation Rate", f"{multi.get('violation_rate', 'N/A')}%", c2)
+
     turn_df = pd.DataFrame([
         {"Type": "Single-turn (1 turn)", "Evaluated": single.get("total", 0), "Violations": single.get("violations", 0), "Violation Rate": f"{single.get('violation_rate', 'N/A')}%"},
-        {"Type": "Multi-turn (2–5 turns)", "Evaluated": multi.get("total", 0), "Violations": multi.get("violations", 0), "Violation Rate": f"{multi.get('violation_rate', 'N/A')}%"},
+        {"Type": "Multi-turn (2-5 turns)", "Evaluated": multi.get("total", 0), "Violations": multi.get("violations", 0), "Violation Rate": f"{multi.get('violation_rate', 'N/A')}%"},
     ])
     st.dataframe(turn_df, use_container_width=True, hide_index=True)
+
+    chart_df = pd.DataFrame({
+        "Single-turn": [single.get("violation_rate", 0)],
+        "Multi-turn": [multi.get("violation_rate", 0)],
+    }, index=["Violation Rate (%)"]).T
+    st.bar_chart(chart_df)
+
+    if single.get("total") and multi.get("total"):
+        gap = multi.get("violation_rate", 0) - single.get("violation_rate", 0)
+        st.caption(
+            f"Multi-turn cases (n={multi['total']}) show a {gap:+.2f} pp violation-rate difference "
+            f"vs. single-turn cases (n={single['total']}). Sample sizes are modest -- read this as a "
+            "directional signal, not a precise estimate."
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("Representative Multi-turn Failures")
+    st.caption("Real judge-flagged violations on multi-turn cases, pulled directly from stored evaluations.")
+
+    _judge_evals_mt = load_judge_evals()
+    _responses_mt = load_responses()
+    _cases_mt = load_cases()
+    _resp_map_mt = {(r["case_id"], r["model"]): r for r in _responses_mt}
+    _case_map_mt = {c["id"]: c for c in _cases_mt}
+
+    mt_failures = [
+        e for e in _judge_evals_mt
+        if e.get("violation") is True and int(e.get("turn_count") or 1) > 1
+    ]
+
+    if not mt_failures:
+        st.info("No multi-turn violations recorded in the current judge evaluations.")
+    else:
+        for ev in mt_failures[:5]:
+            r = _resp_map_mt.get((ev["case_id"], ev["model"]), {})
+            with st.expander(f"{ev['case_id']} -- {ev['model']} -- {ev.get('turn_count')} turns -- {ev.get('category')}"):
+                st.markdown(f"**Language:** `{ev.get('language', '').capitalize()}` | **Category:** `{ev.get('category')}` ({CATEGORIES.get(ev.get('category', ''), '')}) | **Severity:** `{ev.get('severity')}`")
+                if r.get("borrower_turns"):
+                    st.markdown("**Borrower Conversation (all turns):**")
+                    for i, turn in enumerate(r["borrower_turns"], 1):
+                        st.markdown(f"""<div class="response-box"><b>Turn {i}:</b> {turn}</div>""", unsafe_allow_html=True)
+                st.markdown("**Agent Response (final turn):**")
+                st.markdown(f"""<div class="response-box">{r.get('response', '(empty response)')}</div>""", unsafe_allow_html=True)
+                if ev.get("evidence"):
+                    st.markdown(f"**Evidence:** _{ev['evidence']}_")
+                if ev.get("reasoning"):
+                    st.markdown(f"**Judge Reasoning:** {ev['reasoning']}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: FAILURE CASES
 # ═══════════════════════════════════════════════════════════════════════════
-elif page == "💥 Failure Cases":
-    header("Failure Cases", "Presentation-ready adversarial safety violation explorer")
+elif page == "Failure Cases":
+    header("Failure Cases", "Adversarial safety violation explorer")
 
     judge_evals = load_judge_evals()
     responses = load_responses()
@@ -858,17 +1196,57 @@ elif page == "💥 Failure Cases":
         st.info("No violations marked yet. Run the LLM Judge batch evaluation.")
         st.stop()
 
-    st.markdown(f"**{len(violations)} violation case(s) detected by Judge**")
+    # Enrich each violation with case-level fields (attack_type, difficulty,
+    # turn_count) looked up from the case dataset, since not every field is
+    # guaranteed present on the stored evaluation record itself.
+    enriched = []
+    for ev in violations:
+        c = case_map.get(ev["case_id"], {})
+        enriched.append({
+            **ev,
+            "_difficulty": ev.get("difficulty") or c.get("difficulty", "unknown"),
+            "_attack_type": ev.get("attack_type") or c.get("attack_type", "unknown"),
+            "_turn_count": ev.get("turn_count") or c.get("turn_count", 1),
+        })
+
+    f1, f2, f3 = st.columns(3)
+    with f1:
+        f_model = st.selectbox("Model", ["All"] + sorted({e["model"] for e in enriched}))
+        f_lang = st.selectbox("Language", ["All"] + sorted({e.get("language", "unknown") for e in enriched}))
+    with f2:
+        f_cat = st.selectbox("Category", ["All"] + sorted({e.get("category", "unknown") for e in enriched}))
+        f_diff = st.selectbox("Difficulty", ["All"] + sorted({e["_difficulty"] for e in enriched}))
+    with f3:
+        f_attack = st.selectbox("Attack Type", ["All"] + sorted({e["_attack_type"] for e in enriched}))
+        f_turns = st.selectbox("Turn Count", ["All"] + sorted({str(e["_turn_count"]) for e in enriched}, key=lambda x: int(x)))
+
+    filtered = enriched
+    if f_model != "All":
+        filtered = [e for e in filtered if e["model"] == f_model]
+    if f_lang != "All":
+        filtered = [e for e in filtered if e.get("language") == f_lang]
+    if f_cat != "All":
+        filtered = [e for e in filtered if e.get("category") == f_cat]
+    if f_diff != "All":
+        filtered = [e for e in filtered if e["_difficulty"] == f_diff]
+    if f_attack != "All":
+        filtered = [e for e in filtered if e["_attack_type"] == f_attack]
+    if f_turns != "All":
+        filtered = [e for e in filtered if str(e["_turn_count"]) == f_turns]
+
+    st.markdown(f"**{len(filtered)} of {len(violations)} violation case(s) match the current filters**")
     st.markdown("---")
 
-    for ev in violations[:25]:
+    for ev in filtered[:50]:
         r = resp_map.get((ev["case_id"], ev["model"]), {})
-        c = case_map.get(ev["case_id"], {})
-        with st.container():
+        label = (
+            f"{ev['case_id']} -- {ev['model']} -- {ev.get('language', '').capitalize()} -- "
+            f"{ev.get('category')} ({CATEGORIES.get(ev.get('category', ''), '')}) -- "
+            f"severity {ev.get('severity')} -- {ev['_attack_type']}, {ev['_turn_count']} turn(s)"
+        )
+        with st.expander(label):
             c1, c2 = st.columns([3, 2])
             with c1:
-                st.markdown(f"### `{ev['case_id']}` — {ev['model']}")
-                st.markdown(f"**Category:** `{ev.get('category')}` ({CATEGORIES.get(ev.get('category', ''), '')}) | **Severity:** `{ev.get('severity')}`")
                 if r.get("borrower_turns"):
                     st.markdown("**Borrower Conversation:**")
                     for t in r["borrower_turns"]:
@@ -880,14 +1258,23 @@ elif page == "💥 Failure Cases":
                     st.markdown(f"**Evidence:** _{ev['evidence']}_")
                 if ev.get("reasoning"):
                     st.markdown(f"**Judge Reasoning:** {ev['reasoning']}")
-            st.markdown("---")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: LIVE TEST
 # ═══════════════════════════════════════════════════════════════════════════
-elif page == "🚀 Live Test":
-    header("Live Test", "Interactive adversarial testing mode with instant AI Judge verdict")
+elif page == "Live Test":
+    header("Live Test", "Interactive single-turn demonstration -- not part of the official benchmark run")
+
+    st.markdown(
+        """<div class="status-note"><b>Demonstration only.</b> This page sends one message to a live model
+        and scores it with the same judge used elsewhere in this dashboard, but the result is not
+        written to <code>results/</code> and does not count toward the benchmark's official metrics.
+        It also does not simulate a full multi-turn conversation: only the single message you type
+        below is sent to the model, even when you load a scenario that has multiple borrower turns
+        in the benchmark dataset -- prior turns are shown for context only.</div>""",
+        unsafe_allow_html=True,
+    )
 
     model_configs = load_model_configs()
     model_names = [m.name for m in model_configs]
@@ -915,7 +1302,7 @@ elif page == "🚀 Live Test":
     if chosen_case:
         st.info(f"**Expected Safe Behavior:** {default_exp}")
 
-    if st.button("▶ EXECUTE MODEL TURN", type="primary"):
+    if st.button("EXECUTE MODEL TURN", type="primary"):
         cfg = next((m for m in model_configs if m.name == sel_model), None)
         if cfg:
             with st.spinner(f"Querying {sel_model}..."):
@@ -953,8 +1340,8 @@ elif page == "🚀 Live Test":
 
                         st.markdown(f"""
                         <div class="judge-card">
-                            <h4>🤖 Instant AI Judge Verdict</h4>
-                            <b>Status:</b> {'🚨 Violation Detected' if j_verdict.get('violation') else '✅ Compliant (Safe)'}<br>
+                            <h4>Instant AI Judge Verdict</h4>
+                            <b>Status:</b> {'Violation Detected' if j_verdict.get('violation') else 'Compliant (Safe)'}<br>
                             <b>Category:</b> {j_verdict.get('category')} | <b>Severity:</b> {j_verdict.get('severity')} | <b>Confidence:</b> {j_verdict.get('confidence', 0.9):.0%}<br>
                             <b>Evidence Quote:</b> <i>{j_verdict.get('evidence', 'None')}</i><br>
                             <b>Reasoning:</b> {j_verdict.get('reasoning')}
@@ -965,7 +1352,7 @@ elif page == "🚀 Live Test":
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: METHODOLOGY
 # ═══════════════════════════════════════════════════════════════════════════
-elif page == "📖 Methodology":
+elif page == "Methodology":
     header("Methodology", "Controlled evaluation architecture, taxonomy, and mathematical definitions")
 
     st.markdown("""

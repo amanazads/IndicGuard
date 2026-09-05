@@ -45,10 +45,10 @@ def main():
     output_path = ROOT / args.output
 
     if not responses_path.exists():
-        print(f"❌ Responses file not found: {responses_path}")
+        print(f"Responses file not found: {responses_path}")
         sys.exit(1)
     if not cases_path.exists():
-        print(f"❌ Cases file not found: {cases_path}")
+        print(f"Cases file not found: {cases_path}")
         sys.exit(1)
 
     # Load cases
@@ -72,7 +72,7 @@ def main():
     if args.limit:
         responses = responses[:args.limit]
 
-    print(f"🛡️  IndicGuard — Automated LLM-as-a-Judge")
+    print(f"IndicGuard -- Automated LLM-as-a-Judge")
     print(f"══════════════════════════════════════════════════════════════")
     print(f"Target Responses: {len(responses)}")
     print(f"Adversarial Cases: {len(cases)}")
@@ -91,8 +91,8 @@ def main():
 
     # Progress tracking callback
     def on_progress(completed: int, total: int, record: dict):
-        status_icon = "🚨 VIOLATION" if record.get("violation") else ("✅ SAFE" if record.get("violation") is False else "❓ UNCLEAR")
-        print(f"[{completed}/{total}] {record.get('case_id')} ({record.get('model')}) ➜ {status_icon} ({record.get('category')}, {record.get('latency_seconds')}s)")
+        status_icon = "VIOLATION" if record.get("violation") else ("SAFE" if record.get("violation") is False else "UNCLEAR")
+        print(f"[{completed}/{total}] {record.get('case_id')} ({record.get('model')}) {status_icon} ({record.get('category')}, {record.get('latency_seconds')}s)")
 
     start_time = time.perf_counter()
     evaluations = judge.evaluate_batch(
@@ -106,7 +106,7 @@ def main():
     # Save to file
     save_judge_evaluations(evaluations, path=str(output_path), append=not args.overwrite)
     print(f"──────────────────────────────────────────────────────────────")
-    print(f"✨ Successfully evaluated {len(evaluations)} responses in {total_elapsed:.2f}s!")
+    print(f"Successfully evaluated {len(evaluations)} responses in {total_elapsed:.2f}s!")
 
     # Summary Statistics
     total_valid = [e for e in evaluations if e.get("violation") is not None]
@@ -116,7 +116,7 @@ def main():
     v_rate = (len(violations) / len(total_valid) * 100) if total_valid else 0.0
     c_rate = (len(compliant) / len(total_valid) * 100) if total_valid else 0.0
 
-    print(f"\n📊 Summary Evaluation Results:")
+    print(f"\nSummary Evaluation Results:")
     print(f"  • Total Evaluated:   {len(evaluations)}")
     print(f"  • Compliant (Safe):  {len(compliant)} ({c_rate:.2f}%)")
     print(f"  • Violations:        {len(violations)} ({v_rate:.2f}%)")
@@ -126,7 +126,7 @@ def main():
     if human_evals:
         alignment = compute_judge_human_alignment(evaluations, human_evals)
         if alignment.get("status") == "ok":
-            print(f"\n🤝 Judge vs. Human Validation Alignment:")
+            print(f"\nJudge vs. Human Validation Alignment:")
             print(f"  • Paired Cases:       {alignment['paired_count']}")
             print(f"  • Raw Agreement:      {alignment['raw_agreement']}%")
             print(f"  • Cohen's Kappa (κ):  {alignment['cohens_kappa']}")
@@ -136,7 +136,7 @@ def main():
     metrics = compute_metrics(evaluations_path=str(output_path))
     save_metrics(metrics)
     generate_findings_report(metrics_path="results/metrics.json", output_path="docs/findings.md")
-    print(f"\n✅ Updated results/metrics.json and docs/findings.md")
+    print(f"\nUpdated results/metrics.json and docs/findings.md")
 
 
 if __name__ == "__main__":

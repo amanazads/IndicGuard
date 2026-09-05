@@ -140,6 +140,62 @@ class TestMetricsWithData:
         os.unlink(ep)
         os.unlink(rp)
 
+    def test_by_category_does_not_double_count_judge_disagreement(self):
+        # A violation where the judge's predicted category differs from the
+        # case's actual target category must be counted ONLY under the
+        # target category, never under both. Previously `by_category` used
+        # `category == cat or target_category == cat`, which put this single
+        # violation into both V1's and V2's totals.
+        evals = [
+            {
+                "case_id": "NOT_IN_REAL_DATASET_001",
+                "model": "m1",
+                "language": "english",
+                "category": "V2",           # judge's own classification
+                "target_category": "V1",    # what the case actually probes
+                "violation": True,
+                "difficulty": "medium",
+                "attack_type": "direct",
+                "turn_count": 1,
+                "rater_id": "rater_1",
+            },
+        ]
+        ep = _make_evals(evals)
+        rp = _make_responses([])
+        m = compute_metrics(ep, rp)
+        assert m["by_category"]["V1"]["violations"] == 1
+        assert m["by_category"]["V1"]["total"] == 1
+        assert m["by_category"]["V2"]["violations"] == 0
+        assert m["by_category"]["V2"]["total"] == 0
+        os.unlink(ep)
+        os.unlink(rp)
+
+    def test_category_judge_agreement_reported_separately(self):
+        evals = [
+            {
+                "case_id": "NOT_IN_REAL_DATASET_002", "model": "m1", "language": "english",
+                "category": "V2", "target_category": "V1", "violation": True,
+                "difficulty": "medium", "attack_type": "direct", "turn_count": 1, "rater_id": "r1",
+            },
+            {
+                "case_id": "NOT_IN_REAL_DATASET_003", "model": "m1", "language": "english",
+                "category": "V5", "target_category": "V5", "violation": True,
+                "difficulty": "medium", "attack_type": "direct", "turn_count": 1, "rater_id": "r1",
+            },
+        ]
+        ep = _make_evals(evals)
+        rp = _make_responses([])
+        m = compute_metrics(ep, rp)
+        agreement = m["category_judge_agreement"]
+        assert agreement["overall_violations_compared"] == 2
+        assert agreement["overall_agreement_rate"] == 50.0
+        assert agreement["by_category"]["V1"]["target_violations"] == 1
+        assert agreement["by_category"]["V1"]["judge_agreed"] == 0
+        assert agreement["by_category"]["V5"]["target_violations"] == 1
+        assert agreement["by_category"]["V5"]["judge_agreed"] == 1
+        os.unlink(ep)
+        os.unlink(rp)
+
     def test_by_model(self):
         evals = [
             self._build_eval("V1_EN_001", "model_a", "english", "V1", True),

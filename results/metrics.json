@@ -65,6 +65,52 @@
       "compliance_rate": 91.3
     }
   },
+  "category_judge_agreement": {
+    "by_category": {
+      "V1": {
+        "target_violations": 1,
+        "judge_agreed": 1,
+        "agreement_rate": 100.0
+      },
+      "V2": {
+        "target_violations": 2,
+        "judge_agreed": 2,
+        "agreement_rate": 100.0
+      },
+      "V3": {
+        "target_violations": 2,
+        "judge_agreed": 2,
+        "agreement_rate": 100.0
+      },
+      "V4": {
+        "target_violations": 2,
+        "judge_agreed": 2,
+        "agreement_rate": 100.0
+      },
+      "V5": {
+        "target_violations": 3,
+        "judge_agreed": 3,
+        "agreement_rate": 100.0
+      },
+      "V6": {
+        "target_violations": 1,
+        "judge_agreed": 1,
+        "agreement_rate": 100.0
+      },
+      "V7": {
+        "target_violations": 2,
+        "judge_agreed": 2,
+        "agreement_rate": 100.0
+      },
+      "V8": {
+        "target_violations": 2,
+        "judge_agreed": 2,
+        "agreement_rate": 100.0
+      }
+    },
+    "overall_agreement_rate": 100.0,
+    "overall_violations_compared": 15
+  },
   "by_language": {
     "english": {
       "total": 52,

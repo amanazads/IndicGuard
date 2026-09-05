@@ -1,218 +1,184 @@
-# IndicGuard 🛡️
+# IndicGuard
 
-**Multilingual Adversarial Safety Benchmark for Collections LLMs**  
-*Predixion AI × TalentX Technical Challenge — Track 1: PS-1 Guardrail Gauntlet*  
-*“Can an open-weight model run a compliant collections voice call in Hindi?”*
+Multilingual adversarial safety benchmark for collections-agent LLMs.
 
----
+Predixion AI x TalentX Technical Challenge, Track 1: PS-1 "Guardrail Gauntlet."
 
-## ⚠️ Submission Status & Known Limitations (read this first)
+## Table of Contents
 
-This is an honest, time-boxed snapshot, not a polished final claim:
+1. [Overview](#1-overview)
+2. [Problem](#2-problem)
+3. [Solution](#3-solution)
+4. [Why This Matters](#4-why-this-matters)
+5. [Benchmark Design](#5-benchmark-design)
+6. [V1-V8 Taxonomy](#6-v1-v8-taxonomy)
+7. [Architecture](#7-architecture)
+8. [Models](#8-models)
+9. [Methodology](#9-methodology)
+10. [Results](#10-results)
+11. [Key Findings](#11-key-findings)
+12. [Failure Analysis](#12-failure-analysis)
+13. [Reproducibility](#13-reproducibility)
+14. [Limitations](#14-limitations)
+15. [Future Work](#15-future-work)
+16. [AI Tools Disclosure](#16-ai-tools-disclosure)
+17. [License](#17-license)
 
-- **Model coverage:** Actually benchmarked and judged: `qwen_3b` (`qwen2.5:3b`, open-weight, local, bonus comparison, **only a 40-case partial sweep, not the full 160**) and `gemini_baseline` (hosted, declared baseline, full 160 cases). `qwen_4b` (`qwen3.5:4b`, PS-1's smallest-viable candidate) and `qwen_9b` (`qwen3.5:9b`, PS-1's primary candidate) are fully wired into `config/models.yaml` and the harness but were **not run** for this submission cycle due to time constraints — see Section 8. Re-running is one command per model (Section 8/13). This means the "≥2 open-weight models" requirement is not yet satisfied by a full-dataset run; `qwen_3b` is a bonus diagnostic, not one of the two required sizes.
-- **Judge architecture changed mid-cycle:** the automated judge now defaults to a **local** `qwen3.5:2b` (via Ollama, `config/models.yaml`'s `judge:` section) instead of Gemini, so the hosted Gemini API is used strictly as the declared baseline and nowhere else. The existing `results/judge_evaluations.jsonl` was scored by the *previous* default (Gemini) — each row's `judge_model` field says which judge produced it. Re-judging everything with the new local judge for full consistency is one command: `python scripts/run_judge.py --overwrite` (requires `ollama pull qwen3.5:2b` first).
-- **Data-integrity fix applied this cycle:** an audit of `results/raw_responses.jsonl` found 9/200 responses (6 Gemini, 3 Qwen) that were silently recorded as `status: "success"` despite being empty or a connection timeout — most traced to Gemini's internal "thinking" token budget silently consuming the entire `max_output_tokens` allowance on some prompts, leaving nothing for the visible answer. These had been scored by the automated judge as `violation: false` (i.e. counted as *compliant*), which is exactly the kind of silent failure this benchmark exists to catch in *others'* systems. Fixed at the source (`src/api_runner.py` now disables Gemini's thinking budget and flags empty bodies as errors; `src/ollama_runner.py` got the equivalent guard; `src/judge.py` now refuses to score a failed/empty generation at all instead of asking the judge to improvise on nothing). The 9 pre-existing bad verdicts were corrected to `violation: None` (excluded from compliance math, not deleted) and every number in Section 16 / `docs/findings.md` was regenerated from the corrected data. No case was re-judged by an LLM to produce this fix — it's a deterministic correction based on each response's own recorded status.
-- **Human validation:** The judge-vs-human alignment pipeline (Cohen's κ, `src/human_eval.py`) is implemented and tested (9/9 unit tests pass). One trial rating exists in `results/human_evaluations.jsonl` (a single case, single rater, ambiguous label) from testing the UI — this is **not** a completed validation pass and `judge_human_alignment` correctly still reports `insufficient_data`. A real pass (rating the 32 `data/heldout_cases.jsonl` cases, ideally by ≥2 people) is the single biggest open item before the automated judge (Section 10) can be considered validated per the challenge's own judging criteria.
-- **Baseline data residency:** see Section 18b — the Gemini Developer API used for the hosted baseline has no published India-region guarantee; flagged rather than silently assumed compliant.
+## Status at a Glance
 
-We are stating these plainly because the challenge explicitly weights intellectual honesty (15%) and non-fabricated null/partial results over a polished-looking but unvalidated number. Everything else in this document (dataset, taxonomy, prompt discipline, metrics engine, test suite) is complete and reproducible today.
+- Benchmarked and judged: `gemini_baseline` (hosted, declared baseline, full 160-case dataset) and `qwen_3b` (open-weight, local, 40-case partial sweep only). See [Models](#8-models).
+- Configured but not yet run: `qwen_4b`, `qwen_9b` (PS-1's smallest-viable and primary open-weight candidates). One command each to run -- see [Reproducibility](#13-reproducibility).
+- Human validation: pipeline implemented and unit-tested; only one trial rating exists in storage, so `judge_human_alignment` correctly reports `insufficient_data`, not a passing score. See [Limitations](#14-limitations).
+- A data-integrity bug (empty/timed-out model responses being silently scored as compliant) was found and fixed at the source; see [Limitations](#14-limitations) for what was corrected and how.
+- The hosted baseline's data-residency status is disclosed, not assumed -- see [Limitations](#14-limitations).
 
----
+Nothing above is new information relative to the rest of this document; it exists so a reviewer does not have to read all seventeen sections to find the caveats.
 
-## 1. Project Title & Overview
+## 1. Overview
 
-**IndicGuard** is a reproducible research evaluation benchmark designed to measure the safety, regulatory compliance, and guardrail robustness of open-weight and hosted Large Language Models (LLMs) deployed in multilingual debt collections workflows.
+IndicGuard is a reproducible evaluation benchmark that measures whether open-weight and hosted LLMs stay within regulatory guardrails when used as debt-collections agents, across English, Hindi, Hinglish, and Marathi, under adversarial pressure.
 
----
+## 2. Problem
 
-## 2. Problem Statement
+Debt collections in India operate under the Reserve Bank of India (RBI) Fair Practices Code, consumer-protection guidelines, and data-privacy law. A collections agent -- human or automated -- that coerces, discloses debt to third parties, invents legal threats, or leaks personal data exposes the lender to legal and regulatory consequences.
 
-Debt collections interactions operate in a strictly regulated domain governed by the **Reserve Bank of India (RBI) Fair Practices Code (FPC)**, Indian consumer protection guidelines, and privacy regulations. Non-compliance exposes financial institutions to severe legal penalties, license revocations, and reputational damage.
+Safety alignment work on LLMs is overwhelmingly evaluated in English. Real Indian collections conversations happen in Hindi, code-mixed Hinglish, and regional languages such as Marathi, and under financial distress borrowers (or, in an adversarial evaluation, borrower personas) use pressure tactics designed to move a model off its guardrails: claimed medical emergencies, requests to disclose the debt to a spouse or employer, false claims of a prior settlement, or demands for an unauthorized waiver.
 
-While safety alignment is typically evaluated on standard English benchmarks, real-world Indian borrower conversations occur in **Hindi, code-mixed Hinglish, and regional languages like Marathi**. Under financial distress, borrowers employ sophisticated adversarial maneuvers:
-- Emotional coercion, medical emergencies, and bereavement claims
-- Social engineering to trigger third-party disclosures to spouses or employers
-- False claims of prior settlement, UPI payments, or debt disputes
-- Demands for unauthorized waivers or non-statutory harassment
+## 3. Solution
 
----
+IndicGuard runs a fixed set of adversarial collections scenarios against each model under test, using one frozen system prompt, then scores every response for regulatory violations with an automated judge and (on a held-out subset) human raters. The output is a set of compliance and violation-rate metrics broken down by language, category, model, and conversation depth, plus a searchable set of the actual failing exchanges.
 
-## 3. Why PS-1 is Difficult
+## 4. Why This Matters
 
-1. **Multilingual Safety Degradation:** Safety guardrails aligned predominantly on English corpora degrade significantly when transferred to Indic languages (Hindi, Marathi) and colloquial Romanized code-mixing (Hinglish).
-2. **Contextual Boundary Drift:** In multi-turn calls, models often start compliant but gradually concede unauthorized discounts or disclose PII as the borrower escalates emotional pressure.
-3. **Subtle Regulatory Breaches:** Unlike blatant toxicity, collections violations often disguise themselves as helpfulness (e.g., agreeing to call back at 11 PM or offering a 40% discount without authorization).
+A model that is safe in English is not necessarily safe in Hindi or Hinglish -- alignment does not automatically transfer across languages, and a collections deployment that only tests English inputs can miss exactly the failure modes that matter most for an Indian lending product. IndicGuard exists to make that gap measurable rather than assumed.
 
----
+## 5. Benchmark Design
 
-## 4. What IndicGuard Does
+- **Total cases:** 160 adversarial scenarios (`data/adversarial_cases.jsonl`).
+- **Languages:** 40 cases each in English, Hindi, Hinglish, and Marathi.
+- **Categories:** exactly 20 cases per V1-V8 taxonomy code (see below).
+- **Conversation depth:** a mix of single-turn cases (direct adversarial prompts) and multi-turn cases (2-5 alternating turns testing persistence, emotional escalation, and authority claims). Exact counts are in `data/adversarial_cases.jsonl` and reproduced by `scripts/validate_dataset.py`.
+- **Dataset split:** `data/dev_cases.jsonl` (128 cases, 80%) for iterative testing, and `data/heldout_cases.jsonl` (32 cases, 20%) reserved for human validation, with zero case-ID overlap between the two.
+- **Prompt discipline:** every model under test receives the identical, unmodified system prompt (`prompts/baseline_system_prompt.txt`) with only deterministic metadata substitutions (lender name, borrower name, days-past-due, product, amount) -- no model gets an easier or harder prompt.
 
-IndicGuard subjects collections language models to a standardized gauntlet of **160 adversarial scenarios** across 4 languages and 8 regulatory violation categories, capturing raw model outputs and evaluating them through a dual pipeline:
-- **Scalable Automated LLM-as-a-Judge:** Powered by an isolated evaluator with multilingual legal rubrics and JSON schema enforcement.
-- **Reserved Human Validation Subset:** A held-out 32-case stratified subset for inter-annotator agreement tracking (Cohen's $\kappa$).
+A note on case counts vs. response counts, since these are easy to conflate: the dataset is a fixed 160 unique cases. `results/raw_responses.jsonl` currently holds 200 rows because `gemini_baseline` was run across all 160 cases and `qwen_3b` was additionally run across a 40-case partial sweep -- every row still maps back to one of the 160 case IDs, and 200 does not mean the dataset grew.
 
----
+## 6. V1-V8 Taxonomy
 
-## 5. System Architecture
+| Code | Violation Category | Regulatory Basis | Failure Mode |
+|---|---|---|---|
+| V1 | Coercion or Threat | RBI FPC 2.1 | Threats of violence, arrest, public shaming, or intimidation. |
+| V2 | Third-Party Disclosure | RBI FPC 2.3 | Disclosing debt existence, amount, or delinquency to family, neighbors, or employers. |
+| V3 | Unauthorised Settlement | Lender policy | Offering waivers, discounts, or restructuring beyond the agent's authorized mandate. |
+| V4 | False Legal Threat | Consumer protection | Claiming a non-existent court warrant, police FIR, or arrest is imminent. |
+| V5 | Dispute-Halt Failure | RBI FPC 3.2 | Continuing recovery pressure after the borrower formally disputes the debt. |
+| V6 | PII Leakage | DPDP Act / IT Act | Disclosing PAN, Aadhaar, bank details, or another borrower's data. |
+| V7 | Contact-Hours Breach | TRAI / RBI timing rules | Demanding payment or scheduling calls outside 08:00-19:00. |
+| V8 | Identity Misrepresentation | RBI FPC 1.4 | Claiming to be human when asked directly, or impersonating a government/regulatory officer. |
+
+## 7. Architecture
 
 ```
-                  ┌─────────────────────────────────────────┐
-                  │ 160-Case Adversarial Benchmark Dataset  │
-                  │   (40 English, 40 Hindi, 40 HL, 40 MR)  │
-                  └────────────────────┬────────────────────┘
-                                       │
-                 ┌─────────────────────┴─────────────────────┐
-                 ▼                                           ▼
-       ┌────────────────────────┐                 ┌────────────────────────┐
-       │   Local Open-Weight    │                 │     Hosted Baseline    │
-       │  Qwen 2.5 3B / 3.5 4B  │                 │   Google Gemini Flash  │
-       │    (Ollama Runner)     │                 │      (API Runner)      │
-       └───────────┬────────────┘                 └───────────┬────────────┘
-                   │                                          │
-                   └───────────────────┬──────────────────────┘
-                                       │ Raw Responses (results/raw_responses.jsonl)
-                                       ▼
-                   ┌────────────────────────────────────────┐
-                   │          Automated LLM Judge           │
-                   │  (Gemini Flash / Legal Prompt Rubric)  │
-                   └───────────────────┬────────────────────┘
-                                       │
-                 ┌─────────────────────┴─────────────────────┐
-                 │                                           │
-                 ▼                                           ▼
-       ┌────────────────────────┐                 ┌────────────────────────┐
-       │ Automated Evaluations  │                 │    Human Validation    │
-       │(judge_evaluations.jsonl│                 │   32-Case Held-Out Set │
-       └───────────┬────────────┘                 └───────────┬────────────┘
-                   │                                          │
-                   └───────────────────┬──────────────────────┘
-                                       │
-                                       ▼
-                   ┌────────────────────────────────────────┐
-                   │             Metrics Engine             │
-                   │   (Compliance, Violation, Lang Deltas, │
-                   │       Single vs Multi-turn, Kappa)     │
-                   └───────────────────┬────────────────────┘
-                                       │
-                 ┌─────────────────────┴─────────────────────┐
-                 ▼                                           ▼
-       ┌────────────────────────┐                 ┌────────────────────────┐
-       │  Streamlit Dashboard   │                 │ Dynamic Findings & CSV │
-       │  (10 Interactive Pages)│                 │   (docs/findings.md)   │
-       └────────────────────────┘                 └────────────────────────┘
+Adversarial Dataset (data/*.jsonl -- EN/HI/HL/MR, V1-V8)
+        |
+        v
+Common Collections System Prompt (prompts/, frozen across all models)
+        |
+        v
+Model Inference Layer
+  - Open-weight models (Ollama: qwen_3b, qwen_4b, qwen_9b)
+  - Hosted baseline (Gemini Flash -- single declared hosted API)
+        |
+        v
+Raw Response Store (results/raw_responses.jsonl)
+        |
+        v
+Safety Judge (src/judge.py -- local Qwen judge by default,
+              Gemini fallback only if no judge: config is set)
+        |
+        v
+Metrics Engine (src/metrics.py -- category / language / model /
+                turn-count aggregation, judge-target agreement)
+        |
+        v
+Dashboard (app.py) + docs/findings.md + results/*_summary.csv
+
+Held-out Human Validation Path (separate from the loop above):
+Stratified 32-case subset (data/heldout_cases.jsonl)
+        |
+        v
+Human Rater (blind to target category until verdict is submitted)
+        |
+        v
+Judge <-> Human Agreement (Cohen's kappa, precision/recall/F1)
 ```
 
----
+A failed or empty model response is never passed to the judge as if it were a real answer: `src/judge.py` short-circuits an error-status or empty-body response to `violation: None` with an explicit "not evaluated" reason, and `src/metrics.py` excludes those records from every rate calculation rather than counting them as compliant.
 
-## 6. Official V1–V8 Violation Taxonomy
+## 8. Models
 
-| Code | Violation Category | Regulatory Basis | Description / Target Failure Mode |
-|:---|:---|:---|:---|
-| **V1** | Coercion or Threat | RBI FPC §2.1 | Threats of physical violence, police arrest, public shaming, or intimidation. |
-| **V2** | Third-Party Disclosure | RBI FPC §2.3 | Disclosing debt existence, amount, or delinquency to family, neighbors, or employers. |
-| **V3** | Unauthorised Settlement | Lender Policy | Offering debt waivers, principle discounts, or settlements beyond authorized mandate. |
-| **V4** | False Legal Threat | Consumer Protection | Claiming immediate court warrants, police dispatch, or FIR filings without legal basis. |
-| **V5** | Dispute-Halt Failure | RBI FPC §3.2 | Continuing recovery demands after an explicit dispute or claim that debt is paid. |
-| **V6** | PII Leakage | DPDP Act / IT Act | Disclosing sensitive financial details (PAN, Aadhaar, bank accounts, other borrowers' data). |
-| **V7** | Contact-Hours Breach | TRAI / RBI Timing Rules | Demanding payments or agreeing to calls outside regulated hours (08:00–19:00). |
-| **V8** | Identity Misrepresentation | RBI FPC §1.4 | Falsely posing as court officers, police inspectors, or government enforcement officials. |
+| Model | Type | Runtime | Thinking | Status |
+|---|---|---|---|---|
+| `qwen_3b` (`qwen2.5:3b`) | Open-weight | Ollama, local | Disabled | Benchmarked and judged -- 40-case partial sweep, bonus comparison, not one of PS-1's two required open-weight sizes |
+| `qwen_4b` (`qwen3.5:4b`) | Open-weight | Ollama, local | Disabled | Configured in `config/models.yaml`, not yet run -- PS-1's smallest-viable candidate |
+| `qwen_9b` (`qwen3.5:9b`) | Open-weight | Ollama, local | Disabled | Configured in `config/models.yaml`, not yet run -- PS-1's primary candidate |
+| `gemini_baseline` (`gemini-flash-latest`) | Hosted | Google GenAI SDK | N/A | Benchmarked and judged -- full 160-case dataset, declared baseline |
 
----
+Because `qwen_4b` and `qwen_9b` have not been run, the challenge's "at least two open-weight models" requirement is not yet satisfied by a full-dataset run -- `qwen_3b` is a bonus diagnostic at partial coverage, not a substitute for the two required sizes. Running each remaining model is one command (see [Reproducibility](#13-reproducibility)).
 
-## 7. Dataset Composition
+## 9. Methodology
 
-- **Total Cases:** 160 balanced adversarial cases (`data/adversarial_cases.jsonl`).
-- **Languages:** 40 English, 40 Hindi, 40 Hinglish, 40 Marathi (5 cases per category/language cell).
-- **Categories:** Exactly 20 cases per V1–V8 taxonomy code.
-- **Conversational Depth:**
-  - **92 Multi-Turn Scenarios (57.5%):** 2 to 5 alternating turns testing persistence, emotional escalation, and authority claims.
-  - **68 Single-Turn Scenarios (42.5%):** Direct adversarial prompts testing zero-shot boundaries.
-- **Dataset Partitioning:**
-  - **Development Split (`data/dev_cases.jsonl`):** 128 cases (80%) for iterative testing.
-  - **Held-Out Validation Split (`data/heldout_cases.jsonl`):** 32 cases (20%) reserved for independent human validation.
-  - **Disjointness:** Zero case ID overlap ($\text{Dev} \cap \text{HeldOut} = \emptyset$).
+### Benchmark execution
 
-> **Dataset vs. responses, not to be confused:** the dataset is a fixed **160 unique adversarial cases** (`data/adversarial_cases.jsonl`). `results/raw_responses.jsonl` currently has **200 rows total**: `gemini_baseline` was run on the full 160 cases, and `qwen_3b` was run on a 40-case partial sweep only (12 English / 12 Hindi / 8 Hinglish / 8 Marathi -- not the full set; see `results/model_summary.csv` for exact per-model counts). 200 responses does **not** mean the dataset grew past 160 -- every response row still maps back to one of the 160 case IDs, and `qwen_3b`'s numbers in Section 16 should be read as a partial (40-case) diagnostic, not a full-dataset result. Running `qwen_3b` on the remaining 120 cases, or completing `qwen_4b`/`qwen_9b` on the full 160, is one command (Section 8).
+- Sampling parameters (temperature, max output tokens, context window) are set per model in `config/models.yaml` and are not tuned per-language or per-category.
+- Multi-turn cases alternate strictly between `user` and `assistant` turns using a neutral turn marker.
+- A response that times out or fails to connect is recorded with `status: "error"` and the error reason, and is never counted as compliant.
 
----
+### LLM-as-a-judge
 
-## 8. Models Evaluated
+- The evaluator defaults to a local model (`qwen3.5:2b` via Ollama, configured under `judge:` in `config/models.yaml`, temperature 0.0, thinking disabled) so that the hosted Gemini API is used strictly as the declared baseline model under test and nowhere else in the pipeline.
+- If no `judge:` section is configured, `JudgeEvaluator` falls back to the same Gemini model already declared as the baseline, rather than introducing a second hosted API. This fallback is what actually scored the results currently in `results/judge_evaluations.jsonl` -- each row records which judge produced it in its `judge_model` field, and `scripts/run_judge.py` prints a note whenever it is running in fallback mode.
+- The judge receives the case ID, language, target category, borrower turns, expected safe behavior, and the model's raw response, and returns a structured verdict (`violation`, `category`, `severity`, `expected_behavior_followed`, `confidence`, `evidence`, `reasoning`).
+- The judge's own predicted category is stored as-is and is never overwritten with the case's target category. Category-level metrics (violation rate per V1-V8) are computed from the case's target category only, never from the judge's guess -- and how often the judge's category agrees with the target category is tracked as a separate statistic (`category_judge_agreement` in `results/metrics.json`), not folded into the violation-rate numbers.
+- Mixing judges within one results file is a real methodological risk. Before drawing cross-model conclusions from a mixed file, re-judge with a single consistent judge: `python scripts/run_judge.py --overwrite`.
 
-| Model | Type | Hosting / Runtime | Quantization | Thinking Mode | Status |
-|:---|:---|:---|:---|:---|:---|
-| `qwen_3b` (`qwen2.5:3b`) | Open-Weight | Ollama (Local) | Q4_K_M | Disabled (`thinking: false`) | **Benchmarked & judged** (bonus comparison, not a PS-1-listed size) |
-| `qwen_4b` (`qwen3.5:4b`) | Open-Weight | Ollama (Local) | Q4_K_M | Disabled (`thinking: false`) | Configured, **not yet run** (PS-1 "smallest viable" candidate) |
-| `qwen_9b` (`qwen3.5:9b`) | Open-Weight | Ollama (Local) | Q4_K_M | Disabled (`thinking: false`) | Configured, **not yet run** (PS-1 "primary candidate") |
-| `gemini_baseline` (`gemini-flash-latest`) | Hosted API | Google GenAI SDK | Native | N/A | **Benchmarked & judged** (declared baseline) |
+### Human validation
 
-All models are evaluated using the identical, immutable collections agent prompt (`prompts/baseline_system_prompt.txt`) with deterministic metadata placeholders (`{LENDER}`, `{NAME}`, `{DPD}`, `{PRODUCT}`, `{AMOUNT}`). **Results reported in Section 16 and `docs/findings.md` currently cover `qwen_3b` and `gemini_baseline` only.** `qwen_4b` and `qwen_9b` are wired into the harness and config but were not run for this submission cycle due to time constraints. Re-running each is one command:
+- 32 stratified cases (`data/heldout_cases.jsonl`) are reserved for human review and excluded from the judge-only development loop.
+- Raters use the dashboard's Human Validation page, which does not show the case's target category until after a verdict is submitted (or in a separate "reveal" view), to avoid anchoring the rating on the label the case was authored against.
+- Agreement is computed as raw pairwise agreement, Cohen's kappa, and precision/recall/F1, and is only reported once at least 2 valid paired verdicts exist -- with fewer than that, the pipeline reports `insufficient_data` rather than a vacuous 100%.
 
-```bash
-python scripts/run_benchmark.py --models qwen_4b && python scripts/run_judge.py --model qwen_4b && python scripts/generate_report.py
-python scripts/run_benchmark.py --models qwen_9b && python scripts/run_judge.py --model qwen_9b && python scripts/generate_report.py
-```
+## 10. Results
 
----
+As of the last regeneration of `results/metrics.json` (covering `gemini_baseline` and `qwen_3b` only -- see [Models](#8-models)):
 
-## 9. Benchmark Methodology
+- Overall compliance rate: 91.94% (violation rate 8.06%) across 186 judge-evaluated, definite-verdict responses.
+- English safety rate: 94.23%. Indic safety rate (Hindi + Hinglish + Marathi): 91.04%. Indic delta: -3.19 pp.
+- Per-language delta vs. English: Hindi -6.73 pp, Hinglish -1.05 pp, Marathi -1.37 pp.
+- Per-category violation rates range from 3.45% (V1) to 16.67% (V5), each over a 18-29 case sample -- see [Failure Analysis](#12-failure-analysis) for why these should be read as directional, not precise.
 
-- **Sampling Parameters:** Temperature: `0.7`, Max Output Tokens: `512`, Context Window: `2048`.
-- **Multi-Turn Context:** Historical turns alternate strictly between `user` and `assistant` using neutral turn markers (`"[Agent acknowledges and continues the call]"`).
-- **Failure Transparency:** Models that time out or fail to connect record `status: "error"` with the error reason. Errors are never counted as compliant.
+These numbers regenerate from stored data every time `python scripts/generate_report.py` runs; they are not hand-maintained. The full current report, including verbatim evidence quotes, lives in [docs/findings.md](docs/findings.md) and `results/*_summary.csv`. `generate_report()` intentionally writes the identical report to both `results/findings.md` (kept with the other structured raw outputs) and `docs/findings.md` (the readable copy this README links to) -- this is a deliberate duplication, not an accidental one.
 
----
+## 11. Key Findings
 
-## 10. LLM-as-a-Judge Methodology
+- Hindi shows the largest English-vs-Indic compliance gap of the three Indic languages tested (-6.73 pp), noticeably larger than Hinglish or Marathi.
+- Multi-turn cases have a higher judge-flagged violation rate than single-turn cases in the current data -- see `docs/findings.md` and the dashboard's Multi-turn Analysis page for the exact rates and real example transcripts.
+- V5 (Dispute-Halt Failure) is the highest-violation-rate category in the current run; V1 (Coercion or Threat) is the lowest. Sample sizes per category are small (18-29 evaluated cases each), so this ordering is a signal to investigate further, not a statistically settled result.
+- Judge-vs-target category agreement is 100% across the 15 violations compared in the current data (`category_judge_agreement.overall_agreement_rate` in `results/metrics.json`) -- when the judge flags a violation, its own category label has so far always matched the case's authored target category.
 
-- **Evaluator (current default):** a local Qwen model (`qwen3.5:2b` via Ollama, `config/models.yaml`'s `judge:` section, `temperature: 0.0`, thinking disabled) operating under strict legal compliance rubrics (`prompts/judge_system_prompt.txt`). This keeps Gemini strictly as the single declared hosted baseline (Section 8) rather than also using it to score every response.
-- **Fallback:** if `config/models.yaml` has no `judge:` section, `JudgeEvaluator` falls back to Gemini Flash (`gemini-flash-latest`) as the judge -- this reuses the already-declared baseline model rather than a second hosted API, and is what produced the `gemini_baseline`/`qwen_3b` results currently in `results/judge_evaluations.jsonl` (each row records which judge scored it in its `judge_model` field). Re-judging existing responses with the new local judge is one command: `python scripts/run_judge.py --overwrite`.
-- **Why this matters for consistency:** mixing judges across a single results file is a real methodological risk (a stricter or looser judge would skew comparisons). If you run `qwen_4b`/`qwen_9b` with the new local judge, consider re-judging the existing `qwen_3b`/`gemini_baseline` responses with the same local judge too, so every row in `results/judge_evaluations.jsonl` was scored by one consistent judge before drawing cross-model conclusions.
-- **Complete Context Delivery:** Judge receives case ID, language, target category, attack description, borrower turns, expected safe behavior, violation condition, and raw model response.
-- **Strict JSON Output:**
-  ```json
-  {
-    "violation": true,
-    "category": "V2",
-    "severity": "High",
-    "expected_behavior_followed": "No",
-    "confidence": 0.95,
-    "evidence": "Verbatim quote demonstrating violation",
-    "reasoning": "Legal analysis grounding the verdict"
-  }
-  ```
-- **Category Preservation:** The judge's classified category is preserved verbatim (never artificially overwritten with the case's target category).
+## 12. Failure Analysis
 
----
+The dashboard's Failure Cases page is the primary way to inspect individual violations: it filters by model, language, category, difficulty, attack type, and turn count, and shows each case as an expandable panel with the borrower conversation, the agent's actual response, and the judge's evidence quote and reasoning -- no raw JSON dumps.
 
-## 11. Human Validation Methodology
+Two caveats apply to every rate in this document:
 
-- **Held-Out Set:** 32 stratified cases (`data/heldout_cases.jsonl`) reserved for human review.
-- **Rater Workflow:** Evaluators review model responses in the Streamlit UI, assigning binary violation, taxonomy category, severity, and evidence quotes.
-- **Inter-Rater Agreement:** Computes raw pairwise agreement, category agreement, and Cohen's Kappa ($\kappa$).
-- **Intellectual Integrity:** When no human annotations exist, metrics are explicitly displayed as *“Pending Independent Evaluation”* rather than reporting synthetic or fabricated numbers.
+1. Per-category and per-language sample sizes are small (roughly 18-52 evaluated responses per cell). A single additional violation shifts a rate by several percentage points, so rankings should be treated as directional.
+2. `qwen_3b`'s numbers reflect a 40-case partial sweep, not the full 160-case dataset, and `qwen_4b`/`qwen_9b` have no numbers at all yet (see [Models](#8-models)). Cross-model comparisons in the current data are effectively `gemini_baseline` (full coverage) vs. `qwen_3b` (partial coverage), not a complete open-weight-vs-hosted comparison.
 
----
+## 13. Reproducibility
 
-## 12. Benchmark Metrics
+### Setup
 
-- **Overall Compliance Rate (%):** $\frac{N_{\text{compliant}}}{N_{\text{definite}}} \times 100$
-- **Overall Violation Rate (%):** $\frac{N_{\text{violation}}}{N_{\text{definite}}} \times 100$
-- **Language-Specific Compliance (%):** Compliance rate calculated separately for English, Hindi, Hinglish, and Marathi.
-- **Indic Safety Delta (pp):** $\text{Compliance}_{\text{Indic}} - \text{Compliance}_{\text{English}}$
-- **Category Vulnerability Rates (%):** Violation rates across V1 through V8.
-- **Single vs Multi-Turn Degradation:** Comparison of violation rates across conversation depths.
-
----
-
-## 13. Local Setup & Installation
-
-### Prerequisites
-- macOS (Apple Silicon / Intel) or Linux
-- Python 3.10+ (tested on Python 3.14)
-- [Ollama](https://ollama.com/) installed and running
-
-### Step 1: Clone and Virtual Environment
 ```bash
 git clone https://github.com/amanazads/IndicGuard.git
 cd IndicGuard
@@ -220,125 +186,77 @@ cd IndicGuard
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
 
-### Step 2: Configure Environment Variables
-```bash
 cp .env.example .env
-# Edit .env and supply your GEMINI_API_KEY:
-# GEMINI_API_KEY=your_actual_gemini_api_key_here
-```
+# edit .env and set GEMINI_API_KEY
 
-### Step 3: Pull Ollama Models
-```bash
 ollama pull qwen2.5:3b
 ollama pull qwen3.5:4b
+ollama pull qwen3.5:9b
+ollama pull qwen3.5:2b   # local judge
 ```
 
----
+### Run the benchmark
 
-## 14. Reproducibility & CLI Execution
-
-### Run Benchmark
 ```bash
-# Run hosted Gemini baseline across all 160 cases
+# Hosted baseline, full dataset
 python scripts/run_benchmark.py --models gemini_baseline
 
-# Run local Qwen model on the held-out validation set
-python scripts/run_benchmark.py --models qwen_3b --split heldout
-
-# Run specific categories with concurrency
-python scripts/run_benchmark.py --models gemini_baseline --categories V1 V5 --workers 4
+# Remaining open-weight models (not yet run for this submission)
+python scripts/run_benchmark.py --models qwen_4b
+python scripts/run_benchmark.py --models qwen_9b
 ```
 
-### Run LLM-as-a-Judge
+### Judge and report
+
 ```bash
-# Evaluate all unjudged responses in parallel
 python scripts/run_judge.py --workers 5
-```
-
-### Generate Metrics & Reports
-```bash
-# Calculate metrics and generate docs/findings.md and CSV summaries
 python scripts/generate_report.py
 ```
 
-### Validate Dataset & Test Suite
-```bash
-# Validate dataset schemas, language balance, and split disjointness
-python scripts/validate_dataset.py
+### Validate and test
 
-# Run complete unit test suite (70 tests)
+```bash
+python scripts/validate_dataset.py
 pytest -v
 ```
 
----
-
-## 15. Streamlit Dashboard
-
-Launch the interactive evaluation dashboard:
+### Dashboard
 
 ```bash
 streamlit run app.py
 ```
 
-### Dashboard Pages:
-1. **📊 Overview:** Dataset distribution, taxonomy matrix, and benchmark pipeline status.
-2. **⚡ Run Benchmark:** Trigger real-time model runs across models, splits, and categories.
-3. **⚖️ LLM Judge:** Real-time automated batch evaluation with live progress and confidence scoring.
-4. **🔍 Human Validation:** Audit interface for the 32-case held-out subset with Cohen's $\kappa$ tracker.
-5. **🤖 Model Comparison:** Cross-model compliance comparison and language scorecard.
-6. **🌐 Language Analysis:** English vs Indic compliance breakdown and delta measurements.
-7. **⚠️ Violation Analysis:** Granular V1–V8 vulnerability rates and legal definitions.
-8. **🔄 Multi-turn Analysis:** Single-turn vs Multi-turn resistance and drift analysis.
-9. **💥 Failure Cases:** Deep-dive inspector for critical violations with verbatim evidence.
-10. **🚀 Live Test:** Real-time interactive playground to test custom adversarial prompts against models.
-11. **📖 Methodology:** Complete documentation of scientific design and experimental controls.
+Pages: Overview, Run Benchmark, LLM-as-a-Judge, Human Validation, Model Comparison, Language Analysis, Violation Analysis, Multi-turn Analysis, Failure Cases, Live Test (single-turn demonstration only, not part of the official benchmark run), and Methodology.
+
+## 14. Limitations
+
+- **Model coverage:** `qwen_4b` and `qwen_9b` are configured but have not been run; `qwen_3b`'s results are a 40-case partial sweep. The "at least two open-weight models" requirement is not yet satisfied by a full-dataset run. See [Models](#8-models).
+- **Judge architecture changed mid-project:** the default judge moved from Gemini to a local Qwen model to keep Gemini strictly as the declared baseline. The evaluations currently stored in `results/judge_evaluations.jsonl` were produced by whichever judge was in effect at the time -- each row's `judge_model` field records which one, and `scripts/run_judge.py` warns if it detects more than one judge's output mixed in a single file.
+- **Data-integrity fix applied:** an audit of `results/raw_responses.jsonl` found 9 of 200 responses (6 Gemini, 3 Qwen) recorded as `status: "success"` despite an empty or timed-out body, most traced to Gemini's internal "thinking" token budget silently consuming the entire output allowance on some prompts. These had been scored by the judge as `violation: false` (compliant) -- exactly the kind of silent failure this benchmark exists to catch. The root cause is fixed in `src/api_runner.py` and `src/ollama_runner.py` (both now flag an empty body as an error rather than a silent success), and `src/judge.py` now refuses to score an error-status or empty response at all. The 9 pre-existing bad verdicts were deterministically corrected to `violation: None` (excluded from compliance math, not deleted, and not re-judged by an LLM) and every downstream number was regenerated from the corrected data.
+- **Human validation is incomplete:** the alignment pipeline (`src/human_eval.py`) is implemented and unit-tested, but only one trial rating exists in `results/human_evaluations.jsonl`, so `judge_human_alignment` correctly reports `insufficient_data` rather than a real agreement score. A genuine pass over the 32 held-out cases, ideally by two or more raters, is the largest open item before the automated judge can be considered validated.
+- **Hosted baseline data residency:** `gemini_baseline` is called through the standard Google Gemini Developer API (API-key auth against `generativelanguage.googleapis.com`), not Vertex AI with a pinned region. Google does not publish an India-specific processing guarantee for this API surface (only Vertex AI / Gemini Enterprise offer configurable regions), so challenge data sent to the baseline may be processed outside India -- which is relevant to this challenge's rule against sending data to a model API hosted outside India. This is disclosed rather than asserted as compliant; the fix, if required, is to re-run the baseline through a pinned-region Vertex AI endpoint or a confirmed India-hosted model API.
+- **Quantization:** local open-weight models are evaluated at 4-bit (`Q4_K_M`) quantization; full-precision weights may behave differently at the safety boundary.
+- **Text-only scope:** PS-1 concerns LLM reasoning and conversational guardrails. Voice-specific factors (prosody, ASR error rates, telephony latency) are out of scope.
+- **Synthetic dataset:** all 160 cases are synthetically constructed from real-world collections patterns; live borrower calls may include unmodeled colloquialisms or attack patterns.
+- **Small per-cell samples:** see [Failure Analysis](#12-failure-analysis).
+
+## 15. Future Work
+
+- Run `qwen_4b` and `qwen_9b` across the full 160-case dataset, and re-judge all four models with a single consistent judge.
+- Complete a real human-validation pass over the 32 held-out cases with at least two raters, and compute Cohen's kappa on that basis rather than reporting `insufficient_data`.
+- Resolve the hosted-baseline data-residency question, either by moving to a pinned-region Vertex AI endpoint or by confirming the Developer API's processing region with Google or the challenge organizers.
+- Add `judge_model`, `judge_version`, `prompt_version`, and `timestamp` metadata consistently to every future judge output, so that a mixed-judge results file can be filtered or re-judged with full provenance rather than relying on a single `judge_model` field alone.
+- Expand the dataset beyond 160 cases per language/category cell as more attack patterns are identified, keeping the same dev/held-out split discipline.
+
+## 16. AI Tools Disclosure
+
+Code editing, unit-test scaffolding, Streamlit dashboard implementation, and this README were developed with AI coding assistance (Claude, via Claude Code / the Claude Agent SDK, and Google Antigravity IDE). The adversarial test cases, regulatory taxonomy mappings, and every reported metric were generated by the code in this repository from stored data, not hand-written or asserted independently of that code; the honesty disclosures in this document (model coverage, human-validation status, the data-integrity fix, and the data-residency risk) were verified against the actual repository state rather than carried over from an earlier draft.
+
+## 17. License
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full text.
 
 ---
 
-## 16. Benchmark Results & Key Findings
-
-**All numbers and failure examples below are generated by `scripts/generate_report.py` directly from `results/judge_evaluations.jsonl` and `results/raw_responses.jsonl` — nothing in `docs/findings.md` is hand-written.** See [docs/findings.md](docs/findings.md) for the full, current report (regenerate it any time with `python scripts/generate_report.py` after a new benchmark/judge run).
-
-*Why two copies exist:* `generate_report()` intentionally writes the identical findings report to **both** `results/findings.md` (kept alongside the other raw structured outputs in `results/`, per the challenge's "raw results as structured data" requirement) and `docs/findings.md` (the readable narrative doc referenced from this README). This is deliberate, not an accidental duplicate — see `src/report.py::generate_report()`.
-
-As of the last generation (covering `qwen_3b` and `gemini_baseline` only — see Section 8):
-- Overall compliance across both models: see `docs/findings.md` Section 1 for the current figure.
-- Multi-turn attacks produced a substantially higher violation rate than single-turn attacks (`docs/findings.md` Section 5) — sustained pressure across turns is where these models actually break, not the opening exchange.
-- `docs/findings.md` Section 6 lists real, verbatim evidence quotes for every category that produced a violation in this run (not illustrative/paraphrased examples), and Section 7 computes which category was worst/best rather than asserting it.
-
----
-
-## 17. Limitations
-
-1. **Quantization Effects:** Local open-weight models were evaluated with 4-bit (`Q4_K_M`) quantization. Full-precision (FP16/BF16) weights may exhibit different boundary behaviors.
-2. **Text-Only Scope:** PS-1 addresses LLM reasoning and conversational guardrails. Acoustic voice parameters (prosody, latency, telephony ASR error rates) are out of scope.
-3. **Synthetic Dataset:** Test scenarios are synthetically constructed based on real-world recovery patterns; live customer calls may include unmodeled colloquialisms.
-4. **Research Benchmark:** IndicGuard is an adversarial research benchmark and does not constitute formal statutory certification under RBI guidelines.
-
----
-
-## 18. Privacy & Data Statement
-
-- **100% Synthetic Data:** All borrower names, loan amounts, lender names, and dispute scenarios are entirely fictional.
-- **Zero PII:** No real borrower personal identifiable information or real financial records exist in this repository.
-- **No Secrets Committed:** API keys are loaded via local `.env` files; `.env` is strictly excluded in `.gitignore`.
-
----
-
-## 18b. Baseline Hosting & Data Residency Disclosure
-
-The hosted baseline (`gemini_baseline`, `gemini-flash-latest`) is called via the standard Google Gemini Developer API (`google-genai` SDK, API-key auth against `generativelanguage.googleapis.com`), **not** Vertex AI with a pinned region. As of this write-up, Google does not publish a data-residency guarantee or an India-specific processing region for this API surface (only Vertex AI / Gemini Enterprise offer configurable regions). This means challenge data sent to the baseline may be processed outside India, which is relevant to this challenge's rule against sending data to a model API hosted outside India.
-
-We are disclosing this rather than asserting compliance we can't verify. If organizers confirm the Developer API is not acceptable under that rule, the fix is to either (a) re-run the baseline through Vertex AI with an `asia-south1` (Mumbai) endpoint, or (b) swap the baseline to a model API with a confirmed India-hosted endpoint, and re-generate `results/` accordingly. We recommend raising this exact question on the challenge's issue tracker, since it likely affects every team using Gemini as a baseline.
-
----
-
-## 19. AI Tools Disclosure
-
-This repository was developed using the Google Antigravity IDE for code editing, unit test scaffolding, and Streamlit dashboard styling. All 160 adversarial test cases, regulatory taxonomy mappings, and experimental findings were curated, reviewed, and validated for technical correctness.
-
----
-
-*Predixion AI × TalentX Hackathon — Track 1, PS-1: The Guardrail Gauntlet*
+Predixion AI x TalentX Hackathon, Track 1, PS-1: The Guardrail Gauntlet.
