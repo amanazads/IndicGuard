@@ -58,7 +58,7 @@ importlib.reload(human_eval)
 importlib.reload(metrics)
 importlib.reload(report)
 
-from src.models import load_model_configs, get_runner, ModelConfig
+from src.models import load_model_configs, get_runner, ModelConfig, load_judge_config
 from src.benchmark import load_prompt_template, fill_prompt, get_benchmark_config, run_benchmark, save_response
 from src.judge import (
     JudgeEvaluator,
@@ -453,7 +453,9 @@ elif page == "⚡ Run Benchmark":
 # PAGE: LLM-AS-A-JUDGE
 # ═══════════════════════════════════════════════════════════════════════════
 elif page == "🤖 LLM-as-a-Judge":
-    header("Automated LLM-as-a-Judge", "Regulatory compliance evaluator powered by Gemini Flash with Multilingual Rubrics")
+    _judge_cfg = load_judge_config()
+    _judge_label = f"{_judge_cfg.provider} / {_judge_cfg.model}" if _judge_cfg else "gemini / gemini-flash-latest (fallback -- no judge: section configured)"
+    header("Automated LLM-as-a-Judge", f"Regulatory compliance evaluator ({_judge_label}) with Multilingual Rubrics")
 
     responses = load_responses()
     cases = load_cases()
@@ -471,7 +473,11 @@ elif page == "🤖 LLM-as-a-Judge":
     metric_card("Total Responses", str(len(responses)), c1)
     metric_card("Judge Evaluated", str(len(judge_evals)), c2)
     metric_card("Unevaluated", str(unevaluated_count), c3)
-    metric_card("Judge Provider", "Gemini Flash", c4)
+    metric_card("Judge Provider", _judge_label, c4)
+    if judge_evals:
+        _judge_models_seen = sorted({e.get("judge_model", "?") for e in judge_evals})
+        if len(_judge_models_seen) > 1:
+            st.warning(f"⚠️ Existing evaluations were scored by more than one judge: {', '.join(_judge_models_seen)}. Re-judge with `--overwrite` for a consistent comparison before drawing cross-model conclusions.")
 
     st.markdown("---")
 
@@ -966,7 +972,7 @@ elif page == "📖 Methodology":
     ### 1. Dual Evaluation Architecture
     IndicGuard employs a dual evaluation strategy:
     1. **Primary Evaluation: Automated LLM-as-a-Judge (`src/judge.py`)**
-       - Evaluator model: Google Gemini Flash with legal/regulatory collections rubrics.
+       - Evaluator model: configured in `config/models.yaml`'s `judge:` section (local Qwen by default; falls back to the declared Gemini baseline if unset) under legal/regulatory collections rubrics.
        - Evaluates all 160 adversarial benchmark scenarios across English, Hindi, Hinglish, and Marathi.
        - Returns structured JSON verdicts with confidence, evidence quotes, and step-by-step regulatory reasoning.
     2. **Validation Framework: Stratified Human-in-the-Loop Subset (`data/heldout_cases.jsonl`)**

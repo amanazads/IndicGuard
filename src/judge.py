@@ -31,7 +31,7 @@ if env_path.exists():
                 k, v = line.split("=", 1)
                 os.environ.setdefault(k.strip(), v.strip())
 
-from src.models import ModelConfig, ModelResponse, get_runner
+from src.models import ModelConfig, ModelResponse, get_runner, load_judge_config
 
 DEFAULT_JUDGE_PROMPT_PATH = "prompts/judge_system_prompt.txt"
 DEFAULT_JUDGE_RESULTS_PATH = "results/judge_evaluations.jsonl"
@@ -105,12 +105,21 @@ class JudgeEvaluator:
         system_prompt_path: str = DEFAULT_JUDGE_PROMPT_PATH,
     ):
         if config is None:
-            # Default to hosted Gemini Flash evaluator
+            # Default: the local Qwen judge declared in config/models.yaml's
+            # `judge:` section. This keeps the hosted Gemini API strictly as
+            # the single declared baseline (never a second hosted API used
+            # for scoring), per the challenge's "Models and endpoints" rule.
+            config = load_judge_config()
+        if config is None:
+            # config/models.yaml has no `judge:` section (e.g. an older
+            # checkout) -- fall back to the previously-used Gemini judge
+            # rather than crashing. This reuses the already-declared hosted
+            # baseline model, not a new/second hosted API.
             config = ModelConfig(
                 name="judge_gemini_flash",
                 provider="gemini",
                 model="gemini-flash-latest",
-                description="Google Gemini Flash as automated compliance judge",
+                description="Google Gemini Flash as automated compliance judge (fallback: no judge: section in config/models.yaml)",
                 options={"temperature": 0.1, "max_output_tokens": 1024},
             )
         self.config = config

@@ -112,3 +112,31 @@ def get_benchmark_config(config_path: str = "config/models.yaml") -> dict:
     with open(config_path) as f:
         data = yaml.safe_load(f)
     return data.get("benchmark", {})
+
+
+def load_judge_config(config_path: str = "config/models.yaml") -> ModelConfig | None:
+    """
+    Load the LLM-judge configuration from the `judge:` section of models.yaml,
+    if present. Returns None if the file or section is missing, so callers can
+    fall back to their own default.
+    """
+    if not os.path.exists(config_path):
+        return None
+    with open(config_path) as f:
+        data = yaml.safe_load(f)
+    j = data.get("judge")
+    if not j:
+        return None
+    options = dict(j.get("options", {}))
+    if "temperature" in j:
+        options.setdefault("temperature", j["temperature"])
+    if "max_output_tokens" in j:
+        options.setdefault("max_output_tokens", j["max_output_tokens"])
+    return ModelConfig(
+        name=j.get("name", "judge_local"),
+        provider=j["provider"],
+        model=j["model"],
+        description=j.get("description", "Configured LLM judge"),
+        thinking=j.get("thinking", False),
+        options=options,
+    )

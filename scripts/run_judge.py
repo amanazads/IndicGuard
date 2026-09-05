@@ -76,12 +76,18 @@ def main():
     print(f"══════════════════════════════════════════════════════════════")
     print(f"Target Responses: {len(responses)}")
     print(f"Adversarial Cases: {len(cases)}")
-    print(f"Judge Provider:   Google Gemini Flash (Multilingual Legal Rubrics)")
     print(f"Concurrency:      {args.workers} workers")
     print(f"Output File:      {output_path.relative_to(ROOT)}")
     print(f"──────────────────────────────────────────────────────────────")
 
     judge = JudgeEvaluator()
+
+    print(f"Judge Provider:   {judge.config.provider} / {judge.config.model} (`{judge.config.name}`)")
+    if judge.config.provider == "gemini":
+        print("                  NOTE: judge is reusing the declared hosted baseline model,")
+        print("                  not a second hosted API. Add a `judge:` section to")
+        print("                  config/models.yaml (provider: ollama) to judge locally instead.")
+    print(f"──────────────────────────────────────────────────────────────")
 
     # Progress tracking callback
     def on_progress(completed: int, total: int, record: dict):

@@ -91,7 +91,8 @@ IndicGuard employs a **dual evaluation architecture** combining scalable automat
                                  ▼
                  ┌───────────────────────────────┐
                  │       Automated LLM Judge     │
-                 │    (Gemini Flash Evaluator)   │
+                 │ (Local Qwen 3.5 2B, default;  │
+                 │  Gemini Flash fallback)       │
                  └───────────────┬───────────────┘
                                  │
                  ┌───────────────┴───────────────┐
@@ -111,7 +112,8 @@ IndicGuard employs a **dual evaluation architecture** combining scalable automat
 ```
 
 ### 5.1 Automated LLM-as-a-Judge
-- **Judge Model:** Hosted Gemini Flash (`gemini-flash-latest`) or local high-capability model acting under a specialized legal compliance prompt (`prompts/judge_system_prompt.txt`).
+- **Judge Model (default):** local `qwen3.5:2b` via Ollama (`config/models.yaml`'s `judge:` section; `temperature: 0.0`, thinking disabled) acting under a specialized legal compliance prompt (`prompts/judge_system_prompt.txt`). Using a local judge, rather than the hosted baseline model, keeps Gemini strictly as the single declared hosted API per the challenge's data-handling rules.
+- **Judge Model (fallback):** if no `judge:` section is present in `config/models.yaml`, `JudgeEvaluator` falls back to Gemini Flash (`gemini-flash-latest`) -- the already-declared baseline model, not a second hosted API. Every judge evaluation record's `judge_model` field states which judge actually produced it, so a mixed-judge results file is always auditable rather than silently ambiguous.
 - **Prompt Isolation:** The judge receives the complete interaction context (case ID, language, target category, attack description, borrower turns, expected safe behavior, violation condition, and model response).
 - **Strict Structured JSON Schema:**
   ```json
@@ -167,6 +169,8 @@ All metrics feature explicit denominators and transparent error handling:
 - **Text-Only Evaluation:** PS-1 focuses on LLM reasoning and regulatory guardrails. Acoustic features (prosody, emotional cadence, voice latency) are out of scope.
 - **Open-Weight Local Latency:** Running larger quantized models locally on consumer hardware introduces latency that may differ from high-throughput production inference engines.
 - **Evolving Vernacular Expressions:** Regional slang and code-mixing evolve rapidly; while Hinglish is comprehensively tested, regional dialects remain an ongoing area of expansion.
+- **Local judge reliability:** a 2B-parameter judge is materially less reliable at strict structured-JSON output than a larger hosted model. The pipeline already handles this safely -- `src/judge.py::clean_json_response` falls back to `violation: None` (excluded from compliance metrics, never silently counted as compliant) on any unparseable judge output -- but it means a local judge will likely produce a *lower judged-case count*, not wrong verdicts. This is a deliberate reliability/architecture-purity tradeoff, not an oversight.
+- **Judge consistency across models:** because the default judge changed from Gemini to a local Qwen model during development, results produced by different runs may have been scored by different judges. Each judge evaluation record's `judge_model` field states which judge scored it; before drawing final cross-model conclusions, re-judge all responses with one judge (`python scripts/run_judge.py --overwrite`) for a fully consistent comparison.
 
 ### 7.2 AI Assistance Disclosure
 AI development tools (Google Antigravity IDE) were utilized for test scaffolding, dashboard layout, and boilerplate generation. Benchmark case formulation, regulatory mapping, taxonomy design, and experimental validation were conducted under human supervision. Automated LLM judging is used for scalable evaluation and strictly validated against the held-out human annotation subset.
