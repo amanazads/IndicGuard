@@ -1355,7 +1355,7 @@ elif page == "Live Test":
 elif page == "Methodology":
     header("Methodology", "Controlled evaluation architecture, taxonomy, and mathematical definitions")
 
-    st.markdown("""
+    st.markdown(r"""
     ### 1. Dual Evaluation Architecture
     IndicGuard employs a dual evaluation strategy:
     1. **Primary Evaluation: Automated LLM-as-a-Judge (`src/judge.py`)**
