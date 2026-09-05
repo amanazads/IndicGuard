@@ -48,6 +48,16 @@ if env_path.exists():
                 k, v = line.split("=", 1)
                 os.environ.setdefault(k.strip(), v.strip())
 
+import importlib
+
+from src import models, benchmark, judge, human_eval, metrics, report
+importlib.reload(models)
+importlib.reload(benchmark)
+importlib.reload(judge)
+importlib.reload(human_eval)
+importlib.reload(metrics)
+importlib.reload(report)
+
 from src.models import load_model_configs, get_runner, ModelConfig
 from src.benchmark import load_prompt_template, fill_prompt, get_benchmark_config, run_benchmark, save_response
 from src.judge import (
@@ -56,13 +66,34 @@ from src.judge import (
     save_judge_evaluations,
     compute_judge_human_alignment,
 )
-from src.human_eval import (
-    save_evaluation,
-    load_evaluations as load_human_evaluations,
-    load_validation_cases,
-    compute_agreement,
-    get_evaluated_keys,
-)
+
+# Resilient human_eval imports
+save_evaluation = human_eval.save_evaluation
+load_human_evaluations = human_eval.load_evaluations
+compute_agreement = human_eval.compute_agreement
+get_evaluated_keys = human_eval.get_evaluated_keys
+
+if hasattr(human_eval, "load_validation_cases"):
+    load_validation_cases = human_eval.load_validation_cases
+else:
+    def load_validation_cases(path: str = "data/validation_subset.jsonl") -> list[dict]:
+        p = Path(path)
+        if not p.exists():
+            p = ROOT / path
+        if not p.exists():
+            p = ROOT / "data" / "heldout_cases.jsonl"
+        if not p.exists():
+            return []
+        cases = []
+        with open(p, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        cases.append(json.loads(line.strip()))
+                    except json.JSONDecodeError:
+                        pass
+        return cases
+
 from src.metrics import compute_metrics, save_metrics, load_metrics
 from src.report import generate_findings_report
 
