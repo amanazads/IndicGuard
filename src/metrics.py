@@ -1,7 +1,6 @@
 """
 Metrics engine for IndicGuard.
-Computes violation rates, compliance rates, language deltas, and comparisons.
-Only operates on actual human evaluation data — never fabricates results.
+Computes violation rates, compliance rates, language deltas, judge-human alignment, and statistical comparisons from evaluation data.
 """
 
 from __future__ import annotations
@@ -68,12 +67,6 @@ def compute_metrics(
         return {
             "status": "no_evaluations",
             "message": "No evaluations found. Run LLM Judge or complete Human Evaluation first.",
-            "total_responses": len(responses),
-            "total_evaluations": 0,
-        }
-        return {
-            "status": "no_evaluations",
-            "message": "No human evaluations found. Complete evaluations in the Human Evaluation interface first.",
             "total_responses": len(responses),
             "total_evaluations": 0,
         }

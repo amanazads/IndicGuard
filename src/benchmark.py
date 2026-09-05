@@ -1,6 +1,5 @@
 """
 Benchmark runner: orchestrates test cases → model responses → results storage.
-Human evaluation is the evaluation mechanism; no LLM judge is used.
 """
 
 from __future__ import annotations
@@ -8,6 +7,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -120,6 +120,7 @@ def run_benchmark(
     languages: list[str] | None = None,
     dataset_path: str = DATASET_PATH,
     results_path: str = RESULTS_PATH,
+    workers: int = 1,
     verbose: bool = True,
 ) -> list[dict[str, Any]]:
     """
@@ -132,6 +133,7 @@ def run_benchmark(
         languages: Filter by language (None = all).
         dataset_path: Path to cases JSONL file.
         results_path: Where to append results.
+        workers: Concurrency level for parallel inference.
         verbose: Print progress.
     """
     prompt_template = load_prompt_template()
@@ -166,7 +168,7 @@ def run_benchmark(
         if verbose:
             print(f"\n{'='*60}")
             print(f"Model: {model_cfg.name} ({model_cfg.provider}/{model_cfg.model})")
-            print(f"Running {len(cases)} cases...")
+            print(f"Running {len(cases)} cases (workers={workers})...")
             print(f"{'='*60}")
 
         try:
@@ -175,26 +177,70 @@ def run_benchmark(
             print(f"[ERROR] Cannot create runner for {model_cfg.name}: {e}")
             continue
 
-        for i, case in enumerate(cases, 1):
-            if verbose:
-                print(f"  [{i:3d}/{len(cases)}] {case['id']} ({case['language']}, {case['category']})", end=" ... ", flush=True)
-
-            record = run_case(case, runner, prompt_template, bench_config)
-
-            if record.get("error"):
+        if workers <= 1:
+            for i, case in enumerate(cases, 1):
                 if verbose:
-                    print(f"ERROR: {record['error'][:80]}")
-                # If the model is completely unavailable, skip remaining cases for this model
-                if "Cannot connect" in (record.get("error") or "") or "not set" in (record.get("error") or ""):
-                    print(f"\n[SKIP] Stopping model {model_cfg.name}: {record['error']}")
-                    break
-            else:
-                if verbose:
-                    snippet = record["response"][:60].replace("\n", " ")
-                    print(f"OK ({record['latency_seconds']}s) — {snippet}...")
+                    print(f"  [{i:3d}/{len(cases)}] {case['id']} ({case['language']}, {case['category']})", end=" ... ", flush=True)
 
-            save_response(record, results_path)
-            all_results.append(record)
+                record = run_case(case, runner, prompt_template, bench_config)
+
+                if record.get("error"):
+                    if verbose:
+                        print(f"ERROR: {record['error'][:80]}")
+                    if "Cannot connect" in (record.get("error") or "") or "not set" in (record.get("error") or ""):
+                        print(f"\n[SKIP] Stopping model {model_cfg.name}: {record['error']}")
+                        break
+                else:
+                    if verbose:
+                        snippet = record["response"][:60].replace("\n", " ")
+                        print(f"OK ({record['latency_seconds']}s) — {snippet}...")
+
+                save_response(record, results_path)
+                all_results.append(record)
+        else:
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                future_to_case = {
+                    executor.submit(run_case, case, runner, prompt_template, bench_config): case
+                    for case in cases
+                }
+                completed = 0
+                for future in as_completed(future_to_case):
+                    completed += 1
+                    case = future_to_case[future]
+                    try:
+                        record = future.result()
+                    except Exception as exc:
+                        record = {
+                            "case_id": case["id"],
+                            "model": runner.name,
+                            "language": case["language"],
+                            "category": case["category"],
+                            "category_name": case.get("category_name", ""),
+                            "difficulty": case.get("difficulty"),
+                            "attack_type": case.get("attack_type"),
+                            "turn_count": case.get("turn_count", 1),
+                            "borrower_turns": case.get("borrower_turns", []),
+                            "expected_behavior": case.get("expected_behavior", ""),
+                            "violation_condition": case.get("violation_condition", ""),
+                            "response": "",
+                            "status": "error",
+                            "error": str(exc),
+                            "latency_ms": 0,
+                            "latency_seconds": 0.0,
+                            "prompt_tokens": None,
+                            "completion_tokens": None,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }
+
+                    if verbose:
+                        if record.get("error"):
+                            print(f"  [{completed:3d}/{len(cases)}] {case['id']} ({case['language']}, {case['category']}) ... ERROR: {record['error'][:60]}")
+                        else:
+                            snippet = record["response"][:50].replace("\n", " ")
+                            print(f"  [{completed:3d}/{len(cases)}] {case['id']} ({case['language']}, {case['category']}) ... OK ({record['latency_seconds']}s) — {snippet}...")
+
+                    save_response(record, results_path)
+                    all_results.append(record)
 
     if verbose:
         print(f"\n\nDone. {len(all_results)} responses saved to {results_path}")

@@ -7,38 +7,45 @@
 
 ## 1. Overall Findings
 
-_No completed human evaluations recorded yet._
-
-- Total raw model responses: **160**
-- Total human evaluations: **0**
-
-To generate full empirical findings:
-1. Run benchmark: `python scripts/run_benchmark.py`
-2. Complete human safety audits in `streamlit run app.py` (Human Evaluation page)
-3. Re-run `python scripts/generate_report.py`
+- **Evaluated Sample Size:** 194 evaluation verdicts (across 200 model responses).
+- **Overall Compliance Rate:** 92.27% (Violation Rate: 7.73%).
+- **English Safety Baseline:** 94.23% compliance.
+- **Indic Safety Baseline:** 91.55% compliance.
+- **English → Indic Safety Delta:** -2.68 percentage points.
 
 ## 2. Model Comparison
 
 | Model | Total Evaluated | Violations | Compliance Rate | Indic Delta |
 |-------|----------------|------------|-----------------|-------------|
-| _No model data_ | - | - | - | - |
+| `gemini_baseline` | 158 | 1 | 99.37% | -0.85 pp |
+| `qwen_3b` | 36 | 14 | 61.11% | -20.83 pp |
 
 ## 3. Language Differences
 
 | Language | Total Evaluated | Violations | Compliance Rate | Delta vs English |
 |----------|----------------|------------|-----------------|------------------|
-| _No language data_ | - | - | - | - |
+| English | 52 | 3 | 94.23% | Anchor |
+| Hindi | 51 | 6 | 88.24% | -5.99 pp |
+| Hinglish | 46 | 3 | 93.48% | -0.75 pp |
+| Marathi | 45 | 3 | 93.33% | -0.90 pp |
 
 ## 4. Category Failures (V1–V8)
 
 | Category | Name | Evaluated | Violations | Violation Rate |
 |----------|------|-----------|------------|----------------|
-| _No category data_ | - | - | - | - |
+| **V1** | Coercion or Threat | 32 | 1 | 3.12% |
+| **V2** | Third-party Disclosure | 22 | 2 | 9.09% |
+| **V3** | Unauthorised Settlement | 23 | 2 | 8.7% |
+| **V4** | False Legal Threat | 24 | 2 | 8.33% |
+| **V5** | Dispute-halt Failure | 22 | 3 | 13.64% |
+| **V6** | PII Leakage | 24 | 1 | 4.17% |
+| **V7** | Contact-hours Breach | 24 | 2 | 8.33% |
+| **V8** | Identity Misrepresentation | 23 | 2 | 8.7% |
 
 ## 5. Multi-turn Findings
 
-- **Single-turn violation rate:** N/A% (0/0 cases)
-- **Multi-turn violation rate:** N/A% (0/0 cases)
+- **Single-turn violation rate:** 1.3% (1/77 cases)
+- **Multi-turn violation rate:** 11.97% (14/117 cases)
 
 Adversarial multi-turn pressure systematically tests boundary degradation when borrowers persist, fabricate authority, or apply emotional coercion over repeated conversational turns.
 

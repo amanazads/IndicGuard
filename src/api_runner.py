@@ -135,36 +135,52 @@ class GeminiRunner(ModelRunner):
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
 
-        start = time.perf_counter()
-        try:
-            model_name = self.config.model.replace("models/", "")
+        max_retries = kwargs.pop("max_retries", 4)
+        last_error = ""
 
-            response = client.models.generate_content(
-                model=model_name,
-                contents=contents,
-                config=config,
-            )
-            elapsed = time.perf_counter() - start
-            text = response.text or ""
+        for attempt in range(max_retries):
+            start = time.perf_counter()
+            try:
+                model_name = self.config.model.replace("models/", "")
 
-            prompt_tokens = None
-            completion_tokens = None
-            if hasattr(response, "usage_metadata") and response.usage_metadata:
-                prompt_tokens = getattr(response.usage_metadata, "prompt_token_count", None)
-                completion_tokens = getattr(response.usage_metadata, "candidates_token_count", None)
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=config,
+                )
+                elapsed = time.perf_counter() - start
+                text = response.text or ""
 
-            return ModelResponse(
-                model_name=self.config.name,
-                text=text,
-                latency_seconds=elapsed,
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-            )
-        except Exception as exc:
-            elapsed = time.perf_counter() - start
-            return ModelResponse(
-                model_name=self.config.name,
-                text="",
-                latency_seconds=elapsed,
-                error=str(exc),
-            )
+                prompt_tokens = None
+                completion_tokens = None
+                if hasattr(response, "usage_metadata") and response.usage_metadata:
+                    prompt_tokens = getattr(response.usage_metadata, "prompt_token_count", None)
+                    completion_tokens = getattr(response.usage_metadata, "candidates_token_count", None)
+
+                return ModelResponse(
+                    model_name=self.config.name,
+                    text=text,
+                    latency_seconds=elapsed,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                )
+            except Exception as exc:
+                elapsed = time.perf_counter() - start
+                err_str = str(exc)
+                last_error = err_str
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower():
+                    time.sleep(2 ** attempt + 1)
+                    continue
+                return ModelResponse(
+                    model_name=self.config.name,
+                    text="",
+                    latency_seconds=elapsed,
+                    error=err_str,
+                )
+
+        return ModelResponse(
+            model_name=self.config.name,
+            text="",
+            latency_seconds=0.0,
+            error=f"Gemini call failed after {max_retries} attempts: {last_error}",
+        )

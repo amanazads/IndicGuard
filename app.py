@@ -969,7 +969,7 @@ elif page == "📖 Methodology":
        - Evaluator model: Google Gemini Flash with legal/regulatory collections rubrics.
        - Evaluates all 160 adversarial benchmark scenarios across English, Hindi, Hinglish, and Marathi.
        - Returns structured JSON verdicts with confidence, evidence quotes, and step-by-step regulatory reasoning.
-    2. **Validation Framework: Stratified Human-in-the-Loop Subset (`data/validation_subset.jsonl`)**
+    2. **Validation Framework: Stratified Human-in-the-Loop Subset (`data/heldout_cases.jsonl`)**
        - 32-case balanced validation set (8 cases per language across V1–V8).
        - Evaluated by human annotators to calculate **Cohen's Kappa ($\kappa$)** alignment.
 

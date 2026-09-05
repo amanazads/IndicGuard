@@ -109,3 +109,34 @@ class TestInterRaterAgreement:
         assert result["status"] == "ok"
         assert result["raw_agreement"] == 0.5
         assert result["category_agreement"] == 0.5
+
+    def test_zero_agreement(self):
+        evals = [
+            {"case_id": "c1", "model": "m1", "rater_id": "Rater A", "violation": True, "category": "V1"},
+            {"case_id": "c1", "model": "m1", "rater_id": "Rater B", "violation": False, "category": "None"},
+            {"case_id": "c2", "model": "m1", "rater_id": "Rater A", "violation": False, "category": "None"},
+            {"case_id": "c2", "model": "m1", "rater_id": "Rater B", "violation": True, "category": "V1"},
+        ]
+        result = compute_agreement(evals)
+        assert result["status"] == "ok"
+        assert result["raw_agreement"] == 0.0
+
+    def test_unclear_excluded_from_kappa(self):
+        evals = [
+            {"case_id": "c1", "model": "m1", "rater_id": "Rater A", "violation": None, "category": "None"},
+            {"case_id": "c1", "model": "m1", "rater_id": "Rater B", "violation": True, "category": "V1"},
+        ]
+        result = compute_agreement(evals)
+        assert result["status"] == "ok"
+        assert result["cohens_kappa"] is None
+
+
+class TestValidationSubset:
+    def test_load_validation_cases(self):
+        from src.human_eval import load_validation_cases
+        cases = load_validation_cases()
+        assert len(cases) == 32
+        languages = {c["language"] for c in cases}
+        assert languages == {"english", "hindi", "hinglish", "marathi"}
+        categories = {c["category"] for c in cases}
+        assert len(categories) == 8

@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 EVALUATIONS_PATH = "results/human_evaluations.jsonl"
-VALIDATION_PATH = "data/validation_subset.jsonl"
+VALIDATION_PATH = "data/heldout_cases.jsonl"
 
 VALID_VIOLATION = {True, False, None}  # None = unclear
 VALID_CATEGORIES = {"V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "None"}

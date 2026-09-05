@@ -1,21 +1,23 @@
 models:
+  - name: qwen_3b
+    provider: ollama
+    model: qwen2.5:3b
+    thinking: false
+    description: "Qwen 2.5 3B Instruct running locally via Ollama"
+    options:
+      temperature: 0.7
+      num_predict: 512
+      num_ctx: 2048
+
   - name: qwen_4b
     provider: ollama
     model: qwen3.5:4b
     thinking: false
-    description: "Qwen 3.5 4B Q4 running locally via Ollama (Thinking disabled)"
+    description: "Qwen 3.5 4B Q4 running locally via Ollama (Thinking suppressed)"
     options:
       temperature: 0.7
       num_predict: 512
-
-  - name: qwen_9b
-    provider: ollama
-    model: qwen3.5:9b
-    thinking: false
-    description: "Qwen 3.5 9B Q4 running locally via Ollama (Thinking disabled)"
-    options:
-      temperature: 0.7
-      num_predict: 512
+      num_ctx: 2048
 
   - name: gemini_baseline
     provider: gemini

@@ -189,13 +189,14 @@ def generate_findings_report(metrics_path: str = "results/metrics.json", output_
 def generate_report(verbose: bool = True) -> dict[str, Any]:
     metrics = compute_metrics()
     save_metrics(metrics)
-    generate_findings_md(metrics)
+    generate_findings_md(metrics, path=RESULTS_DIR / "findings.md")
+    generate_findings_md(metrics, path=Path("docs/findings.md"))
 
     if metrics.get("status") != "ok":
         if verbose:
             print(f"[INFO] {metrics.get('message', 'Metrics not available.')}")
             print(f"[INFO] Total responses collected: {metrics.get('total_responses', 0)}")
-            print(f"Generated findings template at results/findings.md")
+            print(f"Generated findings template at results/findings.md and docs/findings.md")
         return metrics
 
     # Model summary CSV

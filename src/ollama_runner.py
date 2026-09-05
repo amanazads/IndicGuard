@@ -48,80 +48,104 @@ class OllamaRunner(ModelRunner):
             "options": options,
         }
 
-        start = time.perf_counter()
-        try:
-            resp = requests.post(
-                f"{self.base_url}/api/chat",
-                json=payload,
-                timeout=120,
-            )
-            elapsed = time.perf_counter() - start
+        max_retries = kwargs.pop("max_retries", 3)
+        timeout = kwargs.pop("timeout", 180)
+        last_error = ""
 
-            if resp.status_code == 404:
+        for attempt in range(max_retries):
+            start = time.perf_counter()
+            try:
+                resp = requests.post(
+                    f"{self.base_url}/api/chat",
+                    json=payload,
+                    timeout=timeout,
+                )
+                elapsed = time.perf_counter() - start
+
+                if resp.status_code == 404:
+                    return ModelResponse(
+                        model_name=self.config.name,
+                        text="",
+                        latency_seconds=elapsed,
+                        error=(
+                            f"Model '{self.config.model}' not installed in Ollama. "
+                            f"Run: ollama pull {self.config.model}"
+                        ),
+                    )
+                elif resp.status_code != 200:
+                    return ModelResponse(
+                        model_name=self.config.name,
+                        text="",
+                        latency_seconds=elapsed,
+                        error=f"Ollama HTTP {resp.status_code}: {resp.text[:200]}",
+                    )
+
+                data = resp.json()
+                message = data.get("message", {})
+                raw_text = message.get("content", "")
+                if not raw_text and data.get("response"):
+                    raw_text = data.get("response", "")
+
+                # If content is still empty and thinking is available
+                if not raw_text and message.get("thinking"):
+                    thinking_text = message.get("thinking", "")
+                    if self.config.thinking:
+                        raw_text = thinking_text
+                    else:
+                        # Look for drafted response or return clean text
+                        draft_match = re.search(r'(?:Suggested Response|Draft Response|Response|Final Response|Output):\s*["\']?(.*)', thinking_text, re.IGNORECASE | re.DOTALL)
+                        if draft_match:
+                            raw_text = draft_match.group(1).strip().strip('"\'')
+                        else:
+                            raw_text = _strip_thinking(thinking_text)
+
+                text = _strip_thinking(raw_text) if not self.config.thinking else raw_text
+                usage = data.get("usage", {})
+
+                return ModelResponse(
+                    model_name=self.config.name,
+                    text=text,
+                    latency_seconds=elapsed,
+                    prompt_tokens=usage.get("prompt_tokens") or data.get("prompt_eval_count"),
+                    completion_tokens=usage.get("completion_tokens") or data.get("eval_count"),
+                )
+
+            except requests.exceptions.ConnectionError:
+                elapsed = time.perf_counter() - start
                 return ModelResponse(
                     model_name=self.config.name,
                     text="",
                     latency_seconds=elapsed,
                     error=(
-                        f"Model '{self.config.model}' not installed in Ollama. "
-                        f"Run: ollama pull {self.config.model}"
+                        f"Cannot connect to Ollama at {self.base_url}. "
+                        f"Start Ollama and pull '{self.config.model}': "
+                        f"  ollama pull {self.config.model}"
                     ),
                 )
-            elif resp.status_code != 200:
+            except (requests.exceptions.Timeout, requests.exceptions.RequestException) as exc:
+                elapsed = time.perf_counter() - start
+                last_error = str(exc)
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)
+                    continue
                 return ModelResponse(
                     model_name=self.config.name,
                     text="",
                     latency_seconds=elapsed,
-                    error=f"Ollama HTTP {resp.status_code}: {resp.text[:200]}",
+                    error=f"Ollama request failed after {max_retries} attempts: {last_error}",
+                )
+            except Exception as exc:
+                elapsed = time.perf_counter() - start
+                return ModelResponse(
+                    model_name=self.config.name,
+                    text="",
+                    latency_seconds=elapsed,
+                    error=str(exc),
                 )
 
-            data = resp.json()
-            message = data.get("message", {})
-            raw_text = message.get("content", "")
-            if not raw_text and data.get("response"):
-                raw_text = data.get("response", "")
-
-            # If content is still empty and thinking is available
-            if not raw_text and message.get("thinking"):
-                thinking_text = message.get("thinking", "")
-                if self.config.thinking:
-                    raw_text = thinking_text
-                else:
-                    # Look for drafted response or return clean text
-                    draft_match = re.search(r'(?:Suggested Response|Draft Response|Response|Final Response|Output):\s*["\']?(.*)', thinking_text, re.IGNORECASE | re.DOTALL)
-                    if draft_match:
-                        raw_text = draft_match.group(1).strip().strip('"\'')
-                    else:
-                        raw_text = _strip_thinking(thinking_text)
-
-            text = _strip_thinking(raw_text) if not self.config.thinking else raw_text
-            usage = data.get("usage", {})
-
-            return ModelResponse(
-                model_name=self.config.name,
-                text=text,
-                latency_seconds=elapsed,
-                prompt_tokens=usage.get("prompt_tokens") or data.get("prompt_eval_count"),
-                completion_tokens=usage.get("completion_tokens") or data.get("eval_count"),
-            )
-
-        except requests.exceptions.ConnectionError:
-            elapsed = time.perf_counter() - start
-            return ModelResponse(
-                model_name=self.config.name,
-                text="",
-                latency_seconds=elapsed,
-                error=(
-                    f"Cannot connect to Ollama at {self.base_url}. "
-                    f"Start Ollama and pull '{self.config.model}': "
-                    f"  ollama pull {self.config.model}"
-                ),
-            )
-        except Exception as exc:
-            elapsed = time.perf_counter() - start
-            return ModelResponse(
-                model_name=self.config.name,
-                text="",
-                latency_seconds=elapsed,
-                error=str(exc),
-            )
+        return ModelResponse(
+            model_name=self.config.name,
+            text="",
+            latency_seconds=0.0,
+            error=f"Ollama call failed: {last_error}",
+        )

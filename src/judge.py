@@ -198,9 +198,12 @@ Return ONLY valid JSON matching the specified schema.
         elif not isinstance(violation, bool):
             violation = None
 
-        category = str(verdict.get("category", case.get("category", "None"))).strip()
-        if not category or category == "None" and violation:
-            category = case.get("category", "V1")
+        # Preserve the judge's actual classification verbatim
+        raw_cat = verdict.get("category")
+        if raw_cat is None or str(raw_cat).strip().lower() in ("none", "null", ""):
+            category = None if not violation else "Unspecified"
+        else:
+            category = str(raw_cat).strip().upper()
 
         return {
             "case_id": case_id,
@@ -289,12 +292,21 @@ def save_judge_evaluations(
     path: str = DEFAULT_JUDGE_RESULTS_PATH,
     append: bool = False,
 ) -> None:
-    """Save judge evaluation records to JSONL."""
+    """Save judge evaluation records to JSONL with deduplication."""
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    mode = "a" if append else "w"
-    with open(p, mode, encoding="utf-8") as f:
+    
+    if append and p.exists():
+        existing = load_judge_evaluations(path)
+        eval_dict = {(e.get("case_id"), e.get("model")): e for e in existing}
         for ev in evaluations:
+            eval_dict[(ev.get("case_id"), ev.get("model"))] = ev
+        all_evals = list(eval_dict.values())
+    else:
+        all_evals = evaluations
+
+    with open(p, "w", encoding="utf-8") as f:
+        for ev in all_evals:
             f.write(json.dumps(ev, ensure_ascii=False) + "\n")
 
 

@@ -53,6 +53,7 @@ Examples:
     parser.add_argument("--languages", nargs="+", help="Filter by languages")
     parser.add_argument("--split", choices=["all", "dev", "heldout"], default="all", help="Dataset split (all, dev, heldout)")
     parser.add_argument("--limit", type=int, help="Limit number of cases per model")
+    parser.add_argument("--workers", type=int, default=1, help="Concurrent workers (default: 1)")
     parser.add_argument("--results", default="results/raw_responses.jsonl", help="Output file")
     parser.add_argument("--list-models", action="store_true", help="List configured models and exit")
     args = parser.parse_args()
@@ -89,6 +90,7 @@ Examples:
         languages=args.languages if not case_ids else None,
         dataset_path=dataset_path,
         results_path=args.results,
+        workers=args.workers,
         verbose=True,
     )
 
