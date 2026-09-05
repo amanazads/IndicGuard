@@ -1,0 +1,21 @@
+# Environment & secrets
+.env
+*.env.local
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# OS & Logs
+.DS_Store
+*.log

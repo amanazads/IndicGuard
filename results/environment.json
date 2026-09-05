@@ -1,0 +1,30 @@
+{
+  "os": "macOS-26.5-arm64-arm-64bit-Mach-O",
+  "system": "Darwin",
+  "release": "25.5.0",
+  "machine": "arm64",
+  "processor": "arm",
+  "python_version": "3.14.5",
+  "ram_gb": 8.0,
+  "ollama_version": "ollama version is 0.33.3",
+  "benchmark_models": {
+    "qwen_4b": {
+      "model": "qwen3.5:4b",
+      "quantization": "Q4_K_M",
+      "thinking_mode": false,
+      "provider": "ollama"
+    },
+    "qwen_9b": {
+      "model": "qwen3.5:9b",
+      "quantization": "Q4_K_M",
+      "thinking_mode": false,
+      "provider": "ollama"
+    },
+    "gemini_baseline": {
+      "model": "gemini-flash-latest",
+      "quantization": "Hosted API (FP16/Native)",
+      "thinking_mode": false,
+      "provider": "gemini"
+    }
+  }
+}

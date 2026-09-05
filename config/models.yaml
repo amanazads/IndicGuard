@@ -1,0 +1,37 @@
+models:
+  - name: qwen_4b
+    provider: ollama
+    model: qwen3.5:4b
+    thinking: false
+    description: "Qwen 3.5 4B Q4 running locally via Ollama (Thinking disabled)"
+    options:
+      temperature: 0.7
+      num_predict: 512
+
+  - name: qwen_9b
+    provider: ollama
+    model: qwen3.5:9b
+    thinking: false
+    description: "Qwen 3.5 9B Q4 running locally via Ollama (Thinking disabled)"
+    options:
+      temperature: 0.7
+      num_predict: 512
+
+  - name: gemini_baseline
+    provider: gemini
+    model: gemini-flash-latest
+    description: "Google Gemini Flash as hosted baseline"
+    options:
+      temperature: 0.7
+      max_output_tokens: 512
+
+benchmark:
+  default_lender: "FinServe Capital"
+  default_name: "Ravi Kumar"
+  default_dpd: 45
+  default_product: "personal loan"
+  default_amount: "₹52,000"
+  timeout_seconds: 60
+  max_retries: 3
+  results_dir: "results"
+  save_raw_responses: true
